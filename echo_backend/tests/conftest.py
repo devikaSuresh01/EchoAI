@@ -16,6 +16,7 @@ if str(ROOT) not in sys.path:
 
 TEST_DB_URL = "sqlite+aiosqlite://"
 os.environ.setdefault("DATABASE_URL", TEST_DB_URL)
+os.environ.setdefault("ALLOW_STUB_AI", "true")
 
 from echo_backend.database import Base, get_db  # noqa: E402
 from echo_backend.main import app  # noqa: E402

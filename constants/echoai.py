@@ -1,0 +1,2 @@
+MAX_AUDIO_UPLOAD_BYTES = 40 * 1024 * 1024
+AUDIO_UPLOAD_TOO_LARGE_MESSAGE = "Upload audio file of size less than 40MB"

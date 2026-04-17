@@ -1,11 +1,10 @@
-from echo_backend.models import DeviceToken, Item, Meeting
+from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
 
 
 def test_health(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
-
 
 def test_transcribe_audio_rejects_unsupported_format(client):
     response = client.post(
@@ -44,6 +43,7 @@ def test_process_file_persists_meeting_and_items(client):
     assert payload["meeting_id"] == "mtg_1"
     assert payload["items"]
     assert any(item["needs_confirmation"] for item in payload["items"])
+    assert payload["items"][0]["created_at"]
 
     meetings = client.get("/get-meetings")
     assert meetings.status_code == 200
@@ -131,3 +131,80 @@ def test_process_file_supports_docx(client, sample_docx_bytes):
 
     assert response.status_code == 200
     assert response.json()["items"]
+
+
+def test_process_audio_returns_transcript_and_analysis(client, monkeypatch):
+    async def fake_transcribe_audio(content: bytes, filename: str | None) -> dict:
+        assert filename == "meeting.mp3"
+        return {
+            "text": "Alice will review privacy controls next sprint.",
+            "duration": 12,
+            "language": "en",
+        }
+
+    monkeypatch.setattr("echo_backend.routers.process.transcribe_audio", fake_transcribe_audio)
+
+    response = client.post(
+        "/process-audio",
+        files={"audio_file": ("meeting.mp3", b"fake-audio", "audio/mpeg")},
+        data={"meeting_id": "mtg_audio"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["meeting_id"] == "mtg_audio"
+    assert payload["transcript"] == "Alice will review privacy controls next sprint."
+    assert payload["items"]
+
+
+def test_process_audio_rejects_oversize_upload(client):
+    response = client.post(
+        "/process-audio",
+        files={"audio_file": ("meeting.mp3", b"a" * (MAX_AUDIO_UPLOAD_BYTES + 1), "audio/mpeg")},
+        data={"meeting_id": "mtg_audio_big"},
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": AUDIO_UPLOAD_TOO_LARGE_MESSAGE}
+
+
+def test_transcribe_audio_rejects_oversize_upload(client):
+    response = client.post(
+        "/transcribe-audio",
+        files={"audio_file": ("meeting.mp3", b"a" * (MAX_AUDIO_UPLOAD_BYTES + 1), "audio/mpeg")},
+        data={"meeting_id": "mtg_transcribe_big"},
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": AUDIO_UPLOAD_TOO_LARGE_MESSAGE}
+
+
+def test_process_file_requires_real_ai_when_stub_disabled(client, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("ALLOW_STUB_AI", "false")
+
+    response = client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
+        data={"meeting_id": "mtg_no_ai"},
+    )
+
+    assert response.status_code == 502
+    assert "GEMINI_API_KEY is not configured" in response.json()["detail"]
+
+
+def test_process_file_uses_stub_only_when_explicitly_enabled(client, monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setenv("ALLOW_STUB_AI", "true")
+
+    response = client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"We deferred compliance updates.", "text/plain")},
+        data={"meeting_id": "mtg_stub"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["meeting_id"] == "mtg_stub"
+    assert payload["items"]
+    assert payload["items"][0]["created_at"]

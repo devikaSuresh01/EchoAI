@@ -81,6 +81,7 @@ class Item(Base):
             "reason": self.reason,
             "confidence": self.confidence,
             "needs_confirmation": self.needs_confirmation,
+            "created_at": self.created_at,
         }
 
 

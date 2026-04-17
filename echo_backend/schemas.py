@@ -32,6 +32,7 @@ class ItemResponse(BaseModel):
     reason: str
     confidence: float
     needs_confirmation: bool
+    created_at: datetime
 
 
 class ProcessFileResponse(BaseModel):
@@ -39,6 +40,10 @@ class ProcessFileResponse(BaseModel):
     summary: str
     high_risk_count: int
     items: list[ItemResponse]
+
+
+class ProcessAudioResponse(ProcessFileResponse):
+    transcript: str
 
 
 class MeetingListItem(BaseModel):

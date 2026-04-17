@@ -1,31 +1,19 @@
-import io
-
-
-def _normalize_text(text: str) -> str:
-    return "\n".join(line.rstrip() for line in text.splitlines()).strip()
+import os
+import tempfile
 
 
 async def extract_text(content: bytes, ext: str) -> str:
-    if ext == "txt":
-        return content.decode("utf-8", errors="ignore").strip()
+    from aimodel.ai_processing.file_reader import extract_text_from_file
 
-    if ext == "docx":
+    suffix = f".{ext}"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(content)
+        temp_path = temp_file.name
+
+    try:
+        return extract_text_from_file(temp_path)
+    finally:
         try:
-            from docx import Document
-        except ImportError as exc:
-            raise RuntimeError("python-docx is not installed") from exc
-
-        document = Document(io.BytesIO(content))
-        return _normalize_text("\n".join(p.text for p in document.paragraphs))
-
-    if ext == "pdf":
-        try:
-            import pdfplumber
-        except ImportError as exc:
-            raise RuntimeError("pdfplumber is not installed") from exc
-
-        with pdfplumber.open(io.BytesIO(content)) as pdf:
-            text = "\n".join((page.extract_text() or "") for page in pdf.pages)
-        return _normalize_text(text)
-
-    raise ValueError("unsupported file type")
+            os.remove(temp_path)
+        except FileNotFoundError:
+            pass

@@ -13,7 +13,9 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
-      - key: AI_SERVICE_URL
-        value: ""
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ALLOW_STUB_AI
+        value: "false"
       - key: FIREBASE_CREDENTIALS_BASE64
         sync: false
