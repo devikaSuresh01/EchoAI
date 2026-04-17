@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
+from echo_backend.auth import CurrentUser, get_current_user
 from echo_backend.database import get_db
 from echo_backend.models import Meeting
 from echo_backend.schemas import ProcessAudioResponse, ProcessFileResponse
@@ -47,6 +48,7 @@ def _annotate_items(ai_result: dict) -> dict:
 async def _finalize_transcript(
     meeting_id: str,
     transcript: str,
+    firebase_uid: str,
     db: AsyncSession,
     title: str | None = None,
     meeting_date: str | None = None,
@@ -58,6 +60,7 @@ async def _finalize_transcript(
         await save_meeting(
             db,
             meeting_id,
+            firebase_uid,
             ai_result,
             title=title,
             meeting_date=meeting_date,
@@ -65,7 +68,12 @@ async def _finalize_transcript(
         )
 
         if ai_result["high_risk_count"] > 0:
-            await send_high_risk_notification(db, ai_result["items"])
+            await send_high_risk_notification(
+                db,
+                meeting_id,
+                ai_result["items"],
+                firebase_uid,
+            )
 
         return ai_result
     except HTTPException:
@@ -82,6 +90,7 @@ async def _finalize_transcript(
 async def _process_file_upload(
     file: UploadFile,
     meeting_id: str,
+    firebase_uid: str,
     db: AsyncSession,
     title: str | None = None,
     meeting_date: str | None = None,
@@ -104,7 +113,15 @@ async def _process_file_upload(
     except RuntimeError as exc:
         raise HTTPException(400, str(exc)) from exc
 
-    return await _finalize_transcript(meeting_id, plain_text, db, title, meeting_date, participants)
+    return await _finalize_transcript(
+        meeting_id,
+        plain_text,
+        firebase_uid,
+        db,
+        title,
+        meeting_date,
+        participants,
+    )
 
 
 @router.post("/process-file", response_model=ProcessFileResponse)
@@ -114,9 +131,18 @@ async def process_file(
     title: str | None = Form(default=None),
     meeting_date: str | None = Form(default=None),
     participants: str | None = Form(default=None),
+    current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await _process_file_upload(file, meeting_id, db, title, meeting_date, participants)
+    return await _process_file_upload(
+        file,
+        meeting_id,
+        current_user.firebase_uid,
+        db,
+        title,
+        meeting_date,
+        participants,
+    )
 
 
 @router.post("/process-meeting", response_model=ProcessFileResponse)
@@ -126,9 +152,18 @@ async def process_meeting_alias(
     title: str | None = Form(default=None),
     meeting_date: str | None = Form(default=None),
     participants: str | None = Form(default=None),
+    current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await _process_file_upload(file, meeting_id, db, title, meeting_date, participants)
+    return await _process_file_upload(
+        file,
+        meeting_id,
+        current_user.firebase_uid,
+        db,
+        title,
+        meeting_date,
+        participants,
+    )
 
 
 @router.post("/process-audio", response_model=ProcessAudioResponse)
@@ -138,6 +173,7 @@ async def process_audio(
     title: str | None = Form(default=None),
     meeting_date: str | None = Form(default=None),
     participants: str | None = Form(default=None),
+    current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if audio_file.content_type not in AUDIO_ACCEPTED_MIME:
@@ -160,6 +196,14 @@ async def process_audio(
     if not transcript:
         raise HTTPException(422, "could not transcribe audio")
 
-    ai_result = await _finalize_transcript(meeting_id, transcript, db, title, meeting_date, participants)
+    ai_result = await _finalize_transcript(
+        meeting_id,
+        transcript,
+        current_user.firebase_uid,
+        db,
+        title,
+        meeting_date,
+        participants,
+    )
     ai_result["transcript"] = transcript
     return ai_result

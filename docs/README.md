@@ -9,6 +9,7 @@ Frontend -> `echo_backend` -> `aimodel`
 The frontend should talk only to `echo_backend`. The `aimodel` package is an internal backend-facing module that handles transcription and AI analysis.
 
 For UI-specific integration guidance, see [ui-ux-implementation.md](./ui-ux-implementation.md).
+For tester-focused setup and validation steps, see [tester-guide.md](./tester-guide.md).
 
 ## Overview
 
@@ -160,6 +161,8 @@ Flow:
 2. User selects one meeting
 3. Frontend calls `GET /get-items?meeting_id=...`
 4. User reviews tasks, risk, and confidence
+
+Dashboard startup uses `GET /get-dashboard` to load meetings and items in one response.
 
 ### 4. Status Update
 
@@ -474,6 +477,20 @@ Example success response:
     "created_at": "2026-04-17T10:00:00+00:00"
   }
 ]
+```
+
+### `GET /get-dashboard`
+
+Dashboard bootstrap endpoint.
+
+Purpose:
+
+- fetch all processed meetings together with each meeting's items
+
+Example request:
+
+```bash
+curl "http://127.0.0.1:8000/get-dashboard"
 ```
 
 ### `GET /get-items`

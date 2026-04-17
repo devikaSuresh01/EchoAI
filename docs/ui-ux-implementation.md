@@ -26,6 +26,7 @@ These are the endpoints the UI should use.
 | `POST` | `/process-audio` | `multipart/form-data` | `ProcessAudioResponse` | Audio/video upload with transcription. |
 | `POST` | `/transcribe-audio` | `multipart/form-data` | `TranscribeResponse` | Transcription only, no storage. |
 | `GET` | `/get-meetings` | queryless GET | `list[MeetingListItem]` | Lists processed meetings. |
+| `GET` | `/get-dashboard` | queryless GET | `list[MeetingDashboardItem]` | Lists processed meetings with embedded items for dashboard bootstrap. |
 | `GET` | `/get-items?meeting_id=...` | query param | `list[ItemResponse]` | Returns items for one meeting. |
 | `POST` | `/update-status` | JSON body | `{"ok": true}` | Updates an item status. |
 | `POST` | `/register-device` | JSON body | `{"ok": true}` | Registers push notification token. |
@@ -136,6 +137,15 @@ Response shape for each meeting:
 - `meeting_date`
 - `participants`
 - `created_at`
+
+### `GET /get-dashboard`
+
+Dashboard bootstrap endpoint.
+
+Response shape for each meeting:
+
+- all fields from `/get-meetings`
+- `items`
 
 ### `GET /get-items`
 
