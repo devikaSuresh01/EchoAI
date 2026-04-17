@@ -82,6 +82,10 @@ def _stub_process_meeting(meeting_id: str, transcript: str) -> dict:
     }
 
 
+def build_fallback_analysis(meeting_id: str, transcript: str) -> dict:
+    return _stub_process_meeting(meeting_id, transcript)
+
+
 async def transcribe_audio(content: bytes, filename: str | None) -> dict:
     from aimodel.transcription.service import get_transcript_from_audio
 

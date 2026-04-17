@@ -5,7 +5,7 @@ gemini_client.py — Migrated to google-genai SDK.
 import os
 import threading
 
-TIMEOUT_SECONDS = 15
+TIMEOUT_SECONDS = 30
 
 _client = None
 _client_lock = threading.Lock()
