@@ -29,7 +29,7 @@ def test_extract_items_reports_malformed_json(monkeypatch, capsys):
     assert "Chunk 2 JSON decode error" in captured.out
 
 
-def test_analyze_transcript_raises_when_commitment_signals_have_no_items(monkeypatch):
+def test_analyze_transcript_falls_back_when_commitment_signals_have_no_items(monkeypatch):
     monkeypatch.setattr(
         "aimodel.service.extract_items_from_chunk",
         lambda chunk, chunk_index=0: gemini.ExtractionResult(items=[], had_failure=False),
@@ -38,9 +38,8 @@ def test_analyze_transcript_raises_when_commitment_signals_have_no_items(monkeyp
     monkeypatch.setattr("aimodel.service.get_summary_delay", lambda: 0.0)
     monkeypatch.setattr("aimodel.service.get_chunk_delay", lambda: 0.0)
 
-    try:
-        analyze_transcript("mtg_actions", "John will update the privacy policy next sprint.")
-    except RuntimeError as exc:
-        assert "Action-item extraction failed" in str(exc)
-    else:
-        raise AssertionError("Expected RuntimeError when commitment signals produce no structured items.")
+    result = analyze_transcript("mtg_actions", "John will update the privacy policy next sprint.")
+
+    assert result["meeting_id"] == "mtg_actions"
+    assert result["items"]
+    assert result["high_risk_count"] >= 0

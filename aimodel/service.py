@@ -6,6 +6,7 @@ from aimodel.ai_processing.chunker import chunk_transcript
 from aimodel.ai_processing.gemini import extract_items_from_chunk
 from aimodel.ai_processing.scoring import score_all_items
 from aimodel.ai_processing.summarizer import generate_summary
+from echo_backend.services.aimodel_gateway import build_fallback_analysis
 
 
 def get_max_words() -> int:
@@ -72,10 +73,7 @@ def analyze_transcript(meeting_id: str, transcript: str) -> dict:
             time.sleep(get_chunk_delay())
 
     if not raw_items and (_transcript_has_action_signals(transcript) or had_extraction_failure):
-        raise RuntimeError(
-            "Action-item extraction failed or returned no structured items for a transcript "
-            "that appears to contain commitments."
-        )
+        return build_fallback_analysis(meeting_id, transcript)
 
     time.sleep(get_summary_delay())
 
