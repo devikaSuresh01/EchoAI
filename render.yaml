@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: echoai-backend
+    runtime: python
+    plan: free
+    region: oregon
+    autoDeployTrigger: commit
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn echo_backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: AI_SERVICE_URL
+        value: ""
+      - key: FIREBASE_CREDENTIALS_BASE64
+        sync: false
