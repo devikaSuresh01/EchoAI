@@ -7,3 +7,8 @@ __pycache__/
 .venv/
 *.pyc
 .DS_Store
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
