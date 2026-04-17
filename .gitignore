@@ -4,3 +4,6 @@ echo_backend/.env
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.venv/
+*.pyc
+.DS_Store
