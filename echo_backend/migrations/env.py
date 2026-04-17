@@ -6,6 +6,7 @@ import os
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from echo_backend.db_url import get_sync_database_url
 from echo_backend.database import Base
 from echo_backend.env import load_env
 from echo_backend import models  # noqa: F401
@@ -20,7 +21,9 @@ database_url = os.getenv("DATABASE_URL")
 if not database_url:
     raise RuntimeError("DATABASE_URL is not set. Define it in echo_backend/.env.")
 
-config.set_main_option("sqlalchemy.url", database_url)
+config.set_main_option(
+    "sqlalchemy.url", get_sync_database_url(database_url).replace("%", "%%")
+)
 
 target_metadata = Base.metadata
 
