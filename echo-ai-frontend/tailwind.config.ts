@@ -3,20 +3,20 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        sans: ['Manrope', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
       colors: {
-        brand: '#F8FAFC',
+        brand: '#F4F7FB',
         card: '#FFFFFF',
-        panel: '#EEF2FF',
-        border: '#E5E7EB',
-        primary: '#111827',
-        secondary: '#6B7280',
-        accent: '#2563EB',
-        danger: '#DC2626',
-        warning: '#F59E0B',
-        success: '#10B981',
+        panel: '#EDF6F6',
+        border: '#D9E5EA',
+        primary: '#0F172A',
+        secondary: '#526071',
+        accent: '#0F766E',
+        danger: '#C2410C',
+        warning: '#B45309',
+        success: '#0F9D76',
       },
       keyframes: {
         indeterminate: {

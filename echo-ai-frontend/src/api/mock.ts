@@ -108,7 +108,7 @@ export const mockApi = {
   async registerNotificationToken(
     payload: RegisterNotificationRequest,
   ): Promise<UpdateStatusResponse> {
-    await simulateRequest(`notifications:register:${payload.userId}`);
+    await simulateRequest(`notifications:register:${payload.token}`);
     void payload;
 
     return { ok: true };

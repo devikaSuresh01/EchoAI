@@ -12,6 +12,10 @@ class RegisterDeviceRequest(BaseModel):
     token: str
 
 
+class UnregisterDeviceRequest(BaseModel):
+    token: str
+
+
 class TranscribeResponse(BaseModel):
     meeting_id: str
     transcript: str
@@ -54,6 +58,10 @@ class MeetingListItem(BaseModel):
     meeting_date: date | None = None
     participants: list[str] = Field(default_factory=list)
     created_at: datetime
+
+
+class MeetingDashboardItem(MeetingListItem):
+    items: list[ItemResponse] = Field(default_factory=list)
 
 
 class OkResponse(BaseModel):

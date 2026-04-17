@@ -16,6 +16,7 @@ class Meeting(Base):
     __tablename__ = "meetings"
 
     meeting_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    firebase_uid: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     high_risk_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -32,6 +33,7 @@ class Meeting(Base):
     def to_dict(self) -> dict:
         return {
             "meeting_id": self.meeting_id,
+            "firebase_uid": self.firebase_uid,
             "summary": self.summary,
             "high_risk_count": self.high_risk_count,
             "title": self.title,
@@ -91,4 +93,11 @@ class DeviceToken(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(Text, nullable=False)
+    firebase_uid: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+    )

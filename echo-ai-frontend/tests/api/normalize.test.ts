@@ -105,4 +105,46 @@ describe('normalizeMeetingData', () => {
       needsConfirmation: true,
     });
   });
+
+  it('hydrates top-level meeting list payloads with embedded items', () => {
+    const meeting = normalizeMeetingData({
+      meeting_id: 'mtg-list',
+      summary: 'List summary',
+      title: 'Listed Meeting',
+      meeting_date: '2026-04-18',
+      participants: ['Casey', 'Jordan'],
+      created_at: '2026-04-18T09:30:00.000Z',
+      items: [
+        {
+          id: 'item-list-1',
+          task: 'Review launch notes',
+          owner: 'Casey',
+          status: 'done',
+          due_date: '2026-04-19',
+          risk_keywords: ['launch'],
+          evidence: 'Mentioned in the summary',
+          score: 11,
+          risk: 'low',
+          reason: 'Already complete',
+          confidence: 0.98,
+          needs_confirmation: false,
+        },
+      ],
+    });
+
+    expect(meeting).toMatchObject({
+      id: 'mtg-list',
+      meta: {
+        title: 'Listed Meeting',
+        date: '2026-04-18',
+        participants: ['Casey', 'Jordan'],
+      },
+      createdAt: '2026-04-18T09:30:00.000Z',
+    });
+    expect(meeting.actionItems[0]).toMatchObject({
+      id: 'item-list-1',
+      task: 'Review launch notes',
+      owner: 'Casey',
+    });
+  });
 });

@@ -17,13 +17,18 @@ export function HighRiskList({
     .slice(0, 5);
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md">
-      <div className="mb-4 flex items-center gap-2">
-        <AlertTriangle className="h-5 w-5 text-danger" />
-        <h2 className="text-lg font-semibold text-primary">High Risk Items</h2>
+    <section className="rounded-[28px] border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-danger" />
+          <h2 className="text-lg font-semibold text-primary">High Risk Items</h2>
+        </div>
+        <span className="rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-danger">
+          Priority Queue
+        </span>
       </div>
       {topItems.length === 0 ? (
-        <div className="rounded-xl border border-border bg-panel px-4 py-6 text-center shadow-sm transition-all duration-200 hover:shadow-md">
+        <div className="rounded-2xl border border-border bg-panel px-4 py-6 text-center shadow-sm transition-all duration-200 hover:shadow-md">
           <p className="text-sm font-medium text-primary">No high risk items detected.</p>
           <p className="mt-2 text-xs leading-5 text-secondary">
             Critical and high-priority follow-ups will appear here when identified.
@@ -37,7 +42,7 @@ export function HighRiskList({
               type="button"
               aria-label={`View high risk item ${item.task}`}
               onClick={() => onSelect(item.id)}
-              className="flex w-full flex-col gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+              className="flex w-full flex-col gap-3 rounded-2xl border border-border bg-gradient-to-br from-white to-brand px-4 py-4 text-left shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <RiskBadge risk={item.risk} score={item.score} status={item.status} />

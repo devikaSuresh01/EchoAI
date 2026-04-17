@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { API_URL } from '../config/env';
+import { getCurrentIdToken } from '../services/auth';
 import { normalizeMeetingData } from './normalize';
 import type {
   ConfirmActionStatus,
+  DashboardMeetingApiResponse,
   ItemApiResponse,
   MeetingData,
   MeetingListApiResponse,
@@ -19,6 +21,20 @@ const client = axios.create({
   headers: {
     Accept: 'application/json',
   },
+});
+
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+client.interceptors.request.use(async (config) => {
+  const token = await getCurrentIdToken();
+  if (!token) {
+    return config;
+  }
+
+  const headers = axios.AxiosHeaders.from(config.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  config.headers = headers;
+  return config;
 });
 
 function createUploadPayload(
@@ -86,9 +102,7 @@ export const realApi = {
       endpoint,
       payload,
       {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        timeout: UPLOAD_TIMEOUT_MS,
       },
     );
 
@@ -137,18 +151,14 @@ export const realApi = {
   },
 
   async getDashboard(): Promise<MeetingData[]> {
-    const response = await client.get<MeetingListApiResponse[]>('/get-meetings');
+    const response = await client.get<DashboardMeetingApiResponse[]>('/get-dashboard');
 
     if (!Array.isArray(response.data)) {
       return [];
     }
 
-    return Promise.all(
-      response.data.map(async (meeting) => {
-        const items = await getMeetingItems(meeting.meeting_id);
-
-        return normalizeMeetingData(createMeetingPayload(meeting, items));
-      }),
+    return response.data.map((meeting) =>
+      normalizeMeetingData(createMeetingPayload(meeting, meeting.items)),
     );
   },
 
@@ -168,8 +178,13 @@ export const realApi = {
   async unregisterNotificationToken(
     payload: UnregisterNotificationRequest,
   ): Promise<UpdateStatusResponse> {
-    void payload;
+    const response = await client.post<UpdateStatusResponse>(
+      '/unregister-device',
+      {
+        token: payload.token,
+      },
+    );
 
-    return { ok: true };
+    return response.data;
   },
 };

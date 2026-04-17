@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,12 +11,25 @@ html {
   scroll-behavior: smooth;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.1), transparent 28%),
+    radial-gradient(circle at top right, rgba(30, 64, 175, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(248, 250, 252, 0.92));
+  z-index: -2;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  background: #f8fafc;
-  color: #111827;
-  font-family: 'Inter', sans-serif;
+  background:
+    linear-gradient(180deg, #f4f7fb 0%, #eef4f7 36%, #f8fafc 100%);
+  color: #0f172a;
+  font-family: 'Manrope', sans-serif;
 }
 
 #root {
@@ -27,6 +40,30 @@ button,
 input,
 select {
   font: inherit;
+}
+
+.surface-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-position: center;
+  background-size: 24px 24px;
+}
+
+.hero-glow {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-glow::after {
+  content: '';
+  position: absolute;
+  inset: auto -8% -30% auto;
+  width: 260px;
+  height: 260px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(13, 148, 136, 0.16), transparent 72%);
+  pointer-events: none;
 }
 
 .table-card-cell {
@@ -43,8 +80,33 @@ select {
   text-transform: uppercase;
 }
 
+.table-task-text {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 @media (min-width: 768px) {
   .table-card-cell {
-    display: block;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .table-card-cell-right {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .table-card-cell-center {
+    align-items: center;
+    text-align: center;
+  }
+
+  .table-task-text {
+    line-height: 1.45;
   }
 }

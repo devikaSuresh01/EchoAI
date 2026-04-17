@@ -1,17 +1,60 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
 import { Toaster } from 'react-hot-toast';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { api } from './api/adapter';
 import { withRetry } from './api/retry';
 import { NotificationBanner } from './components/NotificationBanner';
 import { IS_E2E, USE_MOCK } from './config/env';
 import InputPage from './pages/InputPage';
-import { createMockNotification, initForegroundListener } from './services/notifications';
+import SignInPage from './pages/SignInPage';
+import { subscribeToAuthChanges } from './services/auth';
+import {
+  createMockNotification,
+  initForegroundListener,
+  syncPushRegistration,
+  unregisterPushNotifications,
+} from './services/notifications';
 import { selectMeetingData, useAppStore } from './stores/appStore';
+import { useAuthStore } from './stores/authStore';
 import type { ForegroundNotification } from './stores/notificationStore';
 import { useNotificationStore } from './stores/notificationStore';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ReviewWorkspacePage = lazy(() => import('./pages/ReviewWorkspacePage'));
+
+function AuthLoadingFallback(): JSX.Element {
+  return <RouteFallback />;
+}
+
+function ProtectedRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
+
+  if (authLoading) {
+    return <AuthLoadingFallback />;
+  }
+
+  if (user === null) {
+    return <Navigate to="/sign-in" replace />;
+  }
+
+  return children;
+}
+
+function PublicOnlyRoute({ children }: { children: JSX.Element }): JSX.Element {
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
+
+  if (authLoading) {
+    return <AuthLoadingFallback />;
+  }
+
+  if (user !== null) {
+    return <Navigate to="/upload" replace />;
+  }
+
+  return children;
+}
 
 function RouteFallback(): JSX.Element {
   return (
@@ -41,10 +84,36 @@ declare global {
 
 export default function App(): JSX.Element {
   const meetingData = useAppStore(selectMeetingData);
+  const clearMeetings = useAppStore((state) => state.clearMeetings);
   const setMeetings = useAppStore((state) => state.setMeetings);
   const showBanner = useNotificationStore((state) => state.showBanner);
+  const setAuthState = useAuthStore((state) => state.setAuthState);
+  const setAuthLoading = useAuthStore((state) => state.setLoading);
+  const user = useAuthStore((state) => state.user);
+  const previousUserId = useRef<string | null>(null);
 
   useEffect(() => {
+    setAuthLoading(true);
+    const unsubscribe = subscribeToAuthChanges((nextUser) => {
+      setAuthState(nextUser);
+    });
+
+    return unsubscribe;
+  }, [setAuthLoading, setAuthState]);
+
+  useEffect(() => {
+    const previousUid = previousUserId.current;
+    const nextUid = user?.uid ?? null;
+
+    if (user === null) {
+      clearMeetings();
+      return;
+    }
+
+    if (previousUid && previousUid !== nextUid) {
+      clearMeetings();
+    }
+
     if (USE_MOCK) {
       return;
     }
@@ -53,7 +122,7 @@ export default function App(): JSX.Element {
 
     void withRetry(() => api.getDashboard())
       .then((meetings) => {
-        if (isActive && meetings.length > 0) {
+        if (isActive) {
           setMeetings(meetings);
         }
       })
@@ -62,7 +131,7 @@ export default function App(): JSX.Element {
     return () => {
       isActive = false;
     };
-  }, [setMeetings]);
+  }, [clearMeetings, setMeetings, user]);
 
   useEffect(() => {
     const unsubscribe = initForegroundListener((notification) => {
@@ -71,6 +140,21 @@ export default function App(): JSX.Element {
 
     return unsubscribe;
   }, [showBanner]);
+
+  useEffect(() => {
+    const previousUid = previousUserId.current;
+    const nextUid = user?.uid ?? null;
+
+    if (previousUid && previousUid !== nextUid) {
+      void unregisterPushNotifications();
+    }
+
+    if (nextUid) {
+      void syncPushRegistration();
+    }
+
+    previousUserId.current = nextUid;
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!USE_MOCK || typeof window === 'undefined') {
@@ -111,8 +195,47 @@ export default function App(): JSX.Element {
       <NotificationBanner />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
-          <Route path="/" element={<InputPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/"
+            element={(
+              <PublicOnlyRoute>
+                <SignInPage />
+              </PublicOnlyRoute>
+            )}
+          />
+          <Route
+            path="/sign-in"
+            element={(
+              <PublicOnlyRoute>
+                <SignInPage />
+              </PublicOnlyRoute>
+            )}
+          />
+          <Route
+            path="/upload"
+            element={(
+              <ProtectedRoute>
+                <InputPage />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/dashboard"
+            element={(
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/review"
+            element={(
+              <ProtectedRoute>
+                <ReviewWorkspacePage />
+              </ProtectedRoute>
+            )}
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

@@ -1,73 +1,31 @@
 import { api } from '../api/adapter';
 import { withRetry } from '../api/retry';
+import { getCurrentIdToken } from './auth';
 import {
-  FIREBASE_API_KEY,
-  FIREBASE_APP_ID,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_PROJECT_ID,
-  VAPID_KEY,
-} from '../config/env';
+  getFirebaseMessagingClient,
+  hasFirebaseMessagingConfig,
+} from './firebaseClient';
 import type { MeetingData } from '../types/meeting';
 import type { ForegroundNotification } from '../stores/notificationStore';
+import type { MessagePayload } from 'firebase/messaging';
 
 const DISMISS_KEY = 'echoai_notifications_dismissed';
+const TOKEN_KEY = 'echoai_notifications_token';
 
-interface FirebaseMessagingClient {
-  messaging: import('firebase/messaging').Messaging;
-  onMessage: typeof import('firebase/messaging').onMessage;
-  getToken: typeof import('firebase/messaging').getToken;
+export function mapMessagePayloadToNotification(
+  payload: Pick<MessagePayload, 'notification' | 'data'>,
+): ForegroundNotification {
+  return {
+    title: payload.notification?.title ?? 'Echo AI Alert',
+    body: payload.notification?.body ?? 'A high-risk item needs your attention.',
+    meetingId: payload.data?.meetingId,
+    itemId: payload.data?.itemId,
+    actionLabel: payload.data?.itemId ? 'View Item' : undefined,
+    durationMs: 6000,
+  };
 }
 
-let firebaseClientPromise: Promise<FirebaseMessagingClient | null> | null = null;
-
-function hasFirebaseConfig(): boolean {
-  return [
-    FIREBASE_API_KEY,
-    FIREBASE_AUTH_DOMAIN,
-    FIREBASE_PROJECT_ID,
-    FIREBASE_MESSAGING_SENDER_ID,
-    FIREBASE_APP_ID,
-    VAPID_KEY,
-  ].every(Boolean);
-}
-
-async function getFirebaseMessagingClient(): Promise<FirebaseMessagingClient | null> {
-  if (!hasFirebaseConfig() || typeof window === 'undefined') {
-    return null;
-  }
-
-  if (firebaseClientPromise) {
-    return firebaseClientPromise;
-  }
-
-  firebaseClientPromise = Promise.all([
-    import('firebase/app'),
-    import('firebase/messaging'),
-  ])
-    .then(([firebaseApp, firebaseMessaging]) => {
-      const app = firebaseApp.initializeApp({
-        apiKey: FIREBASE_API_KEY,
-        authDomain: FIREBASE_AUTH_DOMAIN,
-        projectId: FIREBASE_PROJECT_ID,
-        messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
-        appId: FIREBASE_APP_ID,
-      });
-
-      return {
-        messaging: firebaseMessaging.getMessaging(app),
-        onMessage: firebaseMessaging.onMessage,
-        getToken: firebaseMessaging.getToken,
-      };
-    })
-    .catch(() => null);
-
-  return firebaseClientPromise;
-}
-
-export async function registerPushNotifications(
-  userId = 'echoai-local-user',
-): Promise<boolean> {
+export async function registerPushNotifications(): Promise<boolean> {
   if (
     typeof window === 'undefined' ||
     !('Notification' in window) ||
@@ -90,9 +48,14 @@ export async function registerPushNotifications(
     return false;
   }
 
+  const idToken = await getCurrentIdToken();
+  if (!idToken) {
+    return false;
+  }
+
   const registration = await navigator.serviceWorker.ready;
   const token = await firebaseClient.getToken(firebaseClient.messaging, {
-    vapidKey: VAPID_KEY,
+    vapidKey: import.meta.env.VITE_VAPID_KEY ?? '',
     serviceWorkerRegistration: registration,
   });
 
@@ -103,11 +66,42 @@ export async function registerPushNotifications(
   await withRetry(() =>
     api.registerNotificationToken({
       token,
-      userId,
     }),
   );
+  localStorage.setItem(TOKEN_KEY, token);
 
   return true;
+}
+
+export async function syncPushRegistration(): Promise<boolean> {
+  if (
+    typeof window === 'undefined' ||
+    !('Notification' in window) ||
+    Notification.permission !== 'granted'
+  ) {
+    return false;
+  }
+
+  return registerPushNotifications();
+}
+
+export async function unregisterPushNotifications(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    return;
+  }
+
+  await withRetry(() =>
+    api.unregisterNotificationToken({
+      token,
+    }),
+  ).catch(() => undefined);
+
+  localStorage.removeItem(TOKEN_KEY);
 }
 
 export function shouldShowNotificationPermissionBanner(): boolean {
@@ -138,10 +132,7 @@ export function initForegroundListener(
     }
 
     unsubscribe = firebaseClient.onMessage(firebaseClient.messaging, (payload) => {
-      onNotification({
-        title: payload.notification?.title ?? 'Echo AI Alert',
-        body: payload.notification?.body ?? 'A high-risk item needs your attention.',
-      });
+      onNotification(mapMessagePayloadToNotification(payload));
     });
   });
 
@@ -174,4 +165,8 @@ export function createMockNotification(
     actionLabel: 'View Item',
     durationMs: 6000,
   };
+}
+
+export function supportsPushNotifications(): boolean {
+  return hasFirebaseMessagingConfig();
 }

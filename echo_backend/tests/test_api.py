@@ -1,4 +1,16 @@
+import asyncio
+import sys
+import types
+
+from sqlalchemy import select
+
 from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
+from echo_backend.models import DeviceToken, Meeting
+from echo_backend.services.fcm import send_high_risk_notification
+
+
+def auth_headers(token: str = "valid-token") -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
 
 
 def test_health(client):
@@ -26,7 +38,7 @@ def test_process_file_rejects_unsupported_type(client):
     assert response.json() == {"detail": "unsupported file type"}
 
 
-def test_process_file_persists_meeting_and_items(client):
+def test_process_file_persists_meeting_and_items(client, sessionmaker_fixture):
     response = client.post(
         "/process-file",
         files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
@@ -53,6 +65,97 @@ def test_process_file_persists_meeting_and_items(client):
     items = client.get("/get-items", params={"meeting_id": "mtg_1"})
     assert items.status_code == 200
     assert items.json()[0]["id"]
+
+    async def fetch_meeting():
+        async with sessionmaker_fixture() as session:
+            return await session.get(Meeting, "mtg_1")
+
+    meeting = asyncio.run(fetch_meeting())
+    assert meeting is not None
+    assert meeting.firebase_uid == "test-user"
+
+
+def test_get_dashboard_returns_meetings_with_items(client):
+    first = client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
+        data={"meeting_id": "mtg_dash_1", "title": "First"},
+    )
+    second = client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Bob is working on security fixes.", "text/plain")},
+        data={"meeting_id": "mtg_dash_2", "title": "Second"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    dashboard = client.get("/get-dashboard")
+    assert dashboard.status_code == 200
+    payload = dashboard.json()
+    assert len(payload) == 2
+    assert payload[0]["meeting_id"] == "mtg_dash_2"
+    assert payload[0]["items"]
+    assert payload[1]["meeting_id"] == "mtg_dash_1"
+    assert payload[1]["items"]
+
+
+def test_meeting_reads_require_auth(raw_client):
+    meetings = raw_client.get("/get-meetings")
+    dashboard = raw_client.get("/get-dashboard")
+    items = raw_client.get("/get-items", params={"meeting_id": "mtg_1"})
+
+    assert meetings.status_code == 401
+    assert meetings.json() == {"detail": "missing authorization token"}
+    assert dashboard.status_code == 401
+    assert dashboard.json() == {"detail": "missing authorization token"}
+    assert items.status_code == 401
+    assert items.json() == {"detail": "missing authorization token"}
+
+
+def test_meeting_reads_are_scoped_to_current_user(raw_client, monkeypatch):
+    def fake_verify(token: str):
+        return {"uid": "owner-user" if token == "owner-token" else "other-user"}
+
+    monkeypatch.setattr("echo_backend.auth.verify_firebase_id_token", fake_verify)
+
+    first = raw_client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
+        data={"meeting_id": "mtg_owner"},
+        headers=auth_headers("owner-token"),
+    )
+    second = raw_client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Bob is working on security fixes.", "text/plain")},
+        data={"meeting_id": "mtg_other"},
+        headers=auth_headers("other-token"),
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    meetings = raw_client.get("/get-meetings", headers=auth_headers("owner-token"))
+    dashboard = raw_client.get("/get-dashboard", headers=auth_headers("owner-token"))
+    items = raw_client.get(
+        "/get-items",
+        params={"meeting_id": "mtg_owner"},
+        headers=auth_headers("owner-token"),
+    )
+    other_items = raw_client.get(
+        "/get-items",
+        params={"meeting_id": "mtg_other"},
+        headers=auth_headers("owner-token"),
+    )
+
+    assert meetings.status_code == 200
+    assert [meeting["meeting_id"] for meeting in meetings.json()] == ["mtg_owner"]
+    assert dashboard.status_code == 200
+    assert [meeting["meeting_id"] for meeting in dashboard.json()] == ["mtg_owner"]
+    assert items.status_code == 200
+    assert items.json()
+    assert other_items.status_code == 404
+    assert other_items.json() == {"detail": "meeting not found"}
 
 
 def test_duplicate_meeting_id_returns_409(client):
@@ -107,6 +210,39 @@ def test_update_status_invalid_value(client):
     assert response.json() == {"detail": "invalid status value"}
 
 
+def test_update_status_requires_auth(raw_client):
+    response = raw_client.post("/update-status", json={"item_id": "missing", "status": "done"})
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing authorization token"}
+
+
+def test_update_status_is_scoped_to_current_user(raw_client, monkeypatch):
+    def fake_verify(token: str):
+        return {"uid": "owner-user" if token == "owner-token" else "other-user"}
+
+    monkeypatch.setattr("echo_backend.auth.verify_firebase_id_token", fake_verify)
+
+    created = raw_client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
+        data={"meeting_id": "mtg_private_status"},
+        headers=auth_headers("owner-token"),
+    )
+
+    assert created.status_code == 200
+    item_id = created.json()["items"][0]["id"]
+
+    response = raw_client.post(
+        "/update-status",
+        json={"item_id": item_id, "status": "done"},
+        headers=auth_headers("other-token"),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "item not found"}
+
+
 def test_register_device_is_idempotent(client):
     first = client.post("/register-device", json={"token": "abc"})
     second = client.post("/register-device", json={"token": "abc"})
@@ -114,6 +250,139 @@ def test_register_device_is_idempotent(client):
     assert first.status_code == 200
     assert second.status_code == 200
     assert second.json() == {"ok": True}
+
+
+def test_register_device_requires_auth(raw_client):
+    response = raw_client.post("/register-device", json={"token": "abc"})
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing authorization token"}
+
+
+def test_register_device_rejects_invalid_auth(raw_client, monkeypatch):
+    monkeypatch.setattr("echo_backend.auth.verify_firebase_id_token", lambda token: None)
+
+    response = raw_client.post(
+        "/register-device",
+        json={"token": "abc"},
+        headers=auth_headers("bad-token"),
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "invalid or expired authorization token"}
+
+
+def test_register_device_uses_verified_uid(raw_client, monkeypatch, sessionmaker_fixture):
+    monkeypatch.setattr(
+        "echo_backend.auth.verify_firebase_id_token",
+        lambda token: {"uid": "firebase-user-1"},
+    )
+
+    response = raw_client.post(
+        "/register-device",
+        json={"token": "token-1"},
+        headers=auth_headers(),
+    )
+
+    assert response.status_code == 200
+
+    async def fetch_token():
+        async with sessionmaker_fixture() as session:
+            result = await session.execute(
+                select(DeviceToken).where(DeviceToken.token == "token-1")
+            )
+            return result.scalar_one_or_none()
+
+    token_row = asyncio.run(fetch_token())
+    assert token_row is not None
+    assert token_row.firebase_uid == "firebase-user-1"
+
+
+def test_register_device_reassigns_existing_token_to_new_owner(
+    raw_client,
+    monkeypatch,
+    sessionmaker_fixture,
+):
+    def fake_verify(token: str):
+        return {"uid": "firebase-user-1" if token == "first-token" else "firebase-user-2"}
+
+    monkeypatch.setattr("echo_backend.auth.verify_firebase_id_token", fake_verify)
+
+    first = raw_client.post(
+        "/register-device",
+        json={"token": "shared-token"},
+        headers=auth_headers("first-token"),
+    )
+    second = raw_client.post(
+        "/register-device",
+        json={"token": "shared-token"},
+        headers=auth_headers("second-token"),
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+
+    async def fetch_token():
+        async with sessionmaker_fixture() as session:
+            result = await session.execute(
+                select(DeviceToken).where(DeviceToken.token == "shared-token")
+            )
+            return result.scalar_one_or_none()
+
+    token_row = asyncio.run(fetch_token())
+    assert token_row is not None
+    assert token_row.firebase_uid == "firebase-user-2"
+
+
+def test_unregister_device_removes_only_current_users_token(
+    raw_client,
+    monkeypatch,
+    sessionmaker_fixture,
+):
+    def fake_verify(token: str):
+        return {"uid": "firebase-user-1" if token == "first-token" else "firebase-user-2"}
+
+    monkeypatch.setattr("echo_backend.auth.verify_firebase_id_token", fake_verify)
+
+    raw_client.post(
+        "/register-device",
+        json={"token": "first-device"},
+        headers=auth_headers("first-token"),
+    )
+    raw_client.post(
+        "/register-device",
+        json={"token": "second-device"},
+        headers=auth_headers("second-token"),
+    )
+
+    response = raw_client.post(
+        "/unregister-device",
+        json={"token": "first-device"},
+        headers=auth_headers("first-token"),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"ok": True}
+
+    async def fetch_tokens():
+        async with sessionmaker_fixture() as session:
+            result = await session.execute(select(DeviceToken).order_by(DeviceToken.token))
+            return result.scalars().all()
+
+    tokens = asyncio.run(fetch_tokens())
+    assert [token.token for token in tokens] == ["second-device"]
+    assert tokens[0].firebase_uid == "firebase-user-2"
+
+
+def test_process_file_requires_auth(raw_client):
+    response = raw_client.post(
+        "/process-file",
+        files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
+        data={"meeting_id": "mtg_auth_required"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "missing authorization token"}
 
 
 def test_process_file_supports_docx(client, sample_docx_bytes):
@@ -155,6 +424,70 @@ def test_process_audio_returns_transcript_and_analysis(client, monkeypatch):
     assert payload["meeting_id"] == "mtg_audio"
     assert payload["transcript"] == "Alice will review privacy controls next sprint."
     assert payload["items"]
+
+
+def test_send_high_risk_notification_targets_only_owner_tokens(
+    sessionmaker_fixture,
+    monkeypatch,
+):
+    sent_messages: list[object] = []
+
+    class FakeNotification:
+        def __init__(self, title: str, body: str):
+            self.title = title
+            self.body = body
+
+    class FakeMulticastMessage:
+        def __init__(self, *, tokens, notification, data):
+            self.tokens = tokens
+            self.notification = notification
+            self.data = data
+
+    fake_messaging = types.SimpleNamespace(
+        Notification=FakeNotification,
+        MulticastMessage=FakeMulticastMessage,
+        send_each_for_multicast=lambda message, app=None: sent_messages.append(message),
+    )
+    fake_firebase_admin = types.ModuleType("firebase_admin")
+    fake_firebase_admin.messaging = fake_messaging
+
+    monkeypatch.setattr("echo_backend.services.fcm.get_firebase_admin_app", lambda: object())
+    monkeypatch.setitem(sys.modules, "firebase_admin", fake_firebase_admin)
+
+    async def scenario():
+        async with sessionmaker_fixture() as session:
+            session.add_all(
+                [
+                    DeviceToken(token="owner-token", firebase_uid="owner-user"),
+                    DeviceToken(token="other-token", firebase_uid="other-user"),
+                ]
+            )
+            await session.commit()
+
+            await send_high_risk_notification(
+                session,
+                "meeting-123",
+                [
+                    {
+                        "id": "item-1",
+                        "task": "Review privacy controls",
+                        "risk": "high",
+                        "score": 92,
+                    }
+                ],
+                "owner-user",
+            )
+
+    asyncio.run(scenario())
+
+    assert len(sent_messages) == 1
+    assert sent_messages[0].tokens == ["owner-token"]
+    assert sent_messages[0].data == {
+        "meetingId": "meeting-123",
+        "itemId": "item-1",
+        "risk": "high",
+        "score": "92",
+    }
 
 
 def test_process_audio_rejects_oversize_upload(client):

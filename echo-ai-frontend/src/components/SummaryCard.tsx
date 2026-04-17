@@ -12,9 +12,9 @@ export function SummaryCard({
   valueClassName,
 }: SummaryCardProps): JSX.Element {
   return (
-    <div className="min-w-[180px] rounded-xl border border-border bg-card px-4 py-4 shadow-sm transition-all duration-200 hover:shadow-md">
+    <div className="min-w-[190px] rounded-[24px] border border-border bg-gradient-to-br from-white to-brand px-4 py-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
       <p className="text-xs uppercase tracking-[0.24em] text-secondary">{label}</p>
-      <p className={`mt-3 text-3xl font-bold ${valueClassName}`}>{value}</p>
+      <p className={`mt-3 text-3xl font-extrabold ${valueClassName}`}>{value}</p>
       <p className="mt-2 text-xs text-secondary">{subtitle}</p>
     </div>
   );

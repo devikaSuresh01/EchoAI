@@ -128,6 +128,9 @@ These are read by the frontend notification service when Firebase messaging is c
 - `VITE_FIREBASE_APP_ID`
 - `VITE_VAPID_KEY`
 
+The background push service worker at `public/firebase-messaging-sw.js` cannot use Vite env vars at runtime.
+It must hardcode the same Firebase web app config values used by the main frontend bundle.
+
 ## 🔌 API Layer
 
 All API access goes through `src/api/adapter.ts`.
@@ -160,7 +163,7 @@ Zustand is the single source of truth for core meeting state.
 ### App store
 
 - `meetings`
-  - all loaded/persisted meetings
+  - all meetings loaded for the current signed-in user session
 - `currentMeetingId`
   - active meeting in the dashboard
 - `selectedItemId`
@@ -173,7 +176,7 @@ Zustand is the single source of truth for core meeting state.
 ### Notes
 
 - meeting selection is derived from store state
-- persisted meetings are normalized on hydration
+- meeting history is loaded from the authenticated backend, not browser persistence
 - selected item IDs are validated against the current meeting
 
 ## 📊 Application Flow

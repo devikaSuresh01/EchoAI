@@ -1,4 +1,9 @@
-import type { ProcessFileApiItem, ProcessFileApiResponse } from '../../src/types/meeting';
+import type {
+  Analytics,
+  MeetingData,
+  ProcessFileApiItem,
+  ProcessFileApiResponse,
+} from '../../src/types/meeting';
 
 type ItemOverrides = Partial<ProcessFileApiItem>;
 
@@ -101,4 +106,56 @@ export function createPaginationResponse(): ProcessFileApiResponse {
       }),
     ],
   });
+}
+
+function createAnalytics(items: ProcessFileApiItem[]): Analytics {
+  return items.reduce(
+    (accumulator, item) => {
+      if (item.risk === 'high') {
+        accumulator.high += 1;
+      } else if (item.risk === 'medium') {
+        accumulator.medium += 1;
+      } else {
+        accumulator.low += 1;
+      }
+
+      return accumulator;
+    },
+    { high: 0, medium: 0, low: 0 },
+  );
+}
+
+export function createStoredMeetingData(
+  response: ProcessFileApiResponse,
+  overrides: Partial<MeetingData> = {},
+): MeetingData {
+  const items = response.items.map((item) => ({
+    id: item.id,
+    task: item.task,
+    owner: item.owner,
+    status: item.status,
+    dueDate: item.due_date,
+    riskKeywords: item.risk_keywords,
+    evidence: item.evidence,
+    score: item.score,
+    risk: item.risk,
+    reason: item.reason,
+    confidence: item.confidence,
+    needsConfirmation: item.needs_confirmation,
+  }));
+
+  return {
+    id: response.meeting_id,
+    meta: {
+      title: overrides.meta?.title ?? 'Validation Meeting',
+      date: overrides.meta?.date ?? '2026-04-17',
+      participants: overrides.meta?.participants ?? ['Alice', 'Bob'],
+    },
+    transcript: response.transcript ?? '',
+    actionItems: items,
+    summary: response.summary,
+    analytics: overrides.analytics ?? createAnalytics(response.items),
+    createdAt: overrides.createdAt ?? '2026-04-17T09:00:00.000Z',
+    ...overrides,
+  };
 }

@@ -7,8 +7,10 @@ import {
   dismissNotificationPermissionBanner,
   registerPushNotifications,
   shouldShowNotificationPermissionBanner,
+  supportsPushNotifications,
 } from '../services/notifications';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 
 export function NotificationBanner(): JSX.Element | null {
@@ -18,12 +20,16 @@ export function NotificationBanner(): JSX.Element | null {
   const setSelectedItemId = useAppStore((state) => state.setSelectedItemId);
   const activeNotification = useNotificationStore((state) => state.activeNotification);
   const clearBanner = useNotificationStore((state) => state.clearBanner);
+  const user = useAuthStore((state) => state.user);
+  const authLoading = useAuthStore((state) => state.isLoading);
   const [permissionVisible, setPermissionVisible] = useState(
     shouldShowNotificationPermissionBanner(),
   );
   const [isEnabling, setIsEnabling] = useState(false);
 
   const showMessageBanner = activeNotification !== null;
+  const showPermissionPrompt =
+    permissionVisible && !authLoading && user !== null && supportsPushNotifications();
 
   useEffect(() => {
     if (activeNotification === null) {
@@ -37,11 +43,17 @@ export function NotificationBanner(): JSX.Element | null {
     return () => window.clearTimeout(timeout);
   }, [activeNotification, clearBanner]);
 
-  if (!permissionVisible && !showMessageBanner) {
+  if (!showPermissionPrompt && !showMessageBanner) {
     return null;
   }
 
   const handleEnableNotifications = async (): Promise<void> => {
+    if (user === null) {
+      toast.error('Sign in before enabling notifications.');
+      navigate('/sign-in', { replace: false });
+      return;
+    }
+
     setIsEnabling(true);
     try {
       const enabled = await registerPushNotifications();
@@ -84,13 +96,18 @@ export function NotificationBanner(): JSX.Element | null {
     }
 
     clearBanner();
+    if (activeNotification.itemId) {
+      navigate(`/review?item=${activeNotification.itemId}`);
+      return;
+    }
+
     navigate('/dashboard');
   };
 
   return (
     <div className="fixed inset-x-0 top-0 z-50 flex flex-col gap-3 p-4">
-      {permissionVisible ? (
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between rounded-xl border border-border bg-card px-4 py-3 shadow-sm backdrop-blur transition-all duration-200 hover:shadow-md">
+      {showPermissionPrompt ? (
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur transition-all duration-200 hover:shadow-md">
           <div className="flex items-center gap-3">
             <BellRing className="h-5 w-5 text-accent" />
             <div>
@@ -106,7 +123,7 @@ export function NotificationBanner(): JSX.Element | null {
               disabled={isEnabling}
               aria-busy={isEnabling}
               onClick={handleEnableNotifications}
-              className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-blue-600 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-accent px-3 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-teal-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isEnabling ? 'Enabling...' : 'Allow'}
             </button>
@@ -114,7 +131,7 @@ export function NotificationBanner(): JSX.Element | null {
               type="button"
               disabled={isEnabling}
               onClick={handleDismissPermission}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
             >
               Later
             </button>
@@ -122,7 +139,7 @@ export function NotificationBanner(): JSX.Element | null {
         </div>
       ) : null}
       {activeNotification ? (
-        <div className="mx-auto flex w-full max-w-5xl items-start justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-sm backdrop-blur transition-all duration-200 hover:shadow-md">
+        <div className="mx-auto flex w-full max-w-5xl items-start justify-between gap-4 rounded-2xl border border-border bg-card/95 px-4 py-3 shadow-sm backdrop-blur transition-all duration-200 hover:shadow-md">
           <div className="flex items-start gap-3">
             <BellRing className="mt-0.5 h-5 w-5 text-danger" />
             <div>
@@ -132,7 +149,7 @@ export function NotificationBanner(): JSX.Element | null {
                 <button
                   type="button"
                   onClick={handleViewItem}
-                  className="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-blue-600 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  className="mt-3 rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-teal-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {activeNotification.actionLabel ?? 'View Item'}
                 </button>

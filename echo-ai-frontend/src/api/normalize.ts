@@ -59,8 +59,13 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return Number.isFinite(normalized) ? normalized : fallback;
 }
 
-function normalizeMeta(value: unknown, fallback?: MeetingMeta): MeetingMeta {
-  const record: UnknownRecord = isRecord(value) ? value : {};
+function normalizeMeta(
+  value: unknown,
+  fallback?: MeetingMeta,
+  record?: UnknownRecord,
+): MeetingMeta {
+  const recordMeta: UnknownRecord = isRecord(value) ? value : {};
+  const source: UnknownRecord = record ?? {};
   const baseMeta: MeetingMeta = fallback ?? {
     title: 'Untitled Meeting',
     date: '',
@@ -68,9 +73,17 @@ function normalizeMeta(value: unknown, fallback?: MeetingMeta): MeetingMeta {
   };
 
   return {
-    title: normalizeString(record.title, baseMeta.title),
-    date: normalizeString(record.date ?? record.meeting_date, baseMeta.date),
-    participants: normalizeStringArray(record.participants ?? baseMeta.participants),
+    title: normalizeString(
+      recordMeta.title ?? source.title,
+      baseMeta.title,
+    ),
+    date: normalizeString(
+      recordMeta.date ?? recordMeta.meeting_date ?? source.date ?? source.meeting_date,
+      baseMeta.date,
+    ),
+    participants: normalizeStringArray(
+      recordMeta.participants ?? source.participants ?? baseMeta.participants,
+    ),
   };
 }
 
@@ -149,7 +162,7 @@ export function normalizeMeetingData(
 
   return {
     id: String(record.id ?? record.meeting_id ?? generateMeetingId()),
-    meta: normalizeMeta(record.meta, fallbackMeta),
+    meta: normalizeMeta(record.meta, fallbackMeta, record),
     transcript: normalizeString(record.transcript, ''),
     actionItems: items,
     summary: normalizeString(record.summary, ''),

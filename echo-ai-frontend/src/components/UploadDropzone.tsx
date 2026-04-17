@@ -85,7 +85,7 @@ export function UploadDropzone({
           inputRef.current?.click();
         }
       }}
-      className={`rounded-2xl border-2 border-dashed bg-card p-8 text-center shadow-sm transition-all duration-200 hover:shadow-md ${
+      className={`rounded-[28px] border-2 border-dashed bg-gradient-to-br from-white to-brand p-8 text-center shadow-sm transition-all duration-200 hover:shadow-md ${
         dragOver ? 'border-accent ring-2 ring-accent/20' : 'border-gray-300'
       } ${disabled ? 'pointer-events-none opacity-50' : 'cursor-pointer hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40'}`}
     >
@@ -103,7 +103,7 @@ export function UploadDropzone({
         }}
       />
       {file ? (
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-panel px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-panel px-4 py-4">
           <div className="flex items-center gap-3 text-left">
             <config.Icon className="h-6 w-6 flex-shrink-0 text-accent" />
             <div>
@@ -130,10 +130,13 @@ export function UploadDropzone({
       ) : (
         <>
           <UploadCloud className="mx-auto mb-3 h-8 w-8 text-accent" />
-          <p className="mb-1 text-sm text-primary">{config.label}</p>
+          <p className="mb-1 text-base font-semibold text-primary">{config.label}</p>
           <p id="upload-dropzone-hint" className="text-xs text-secondary">
             {config.hint}
           </p>
+          <div className="mt-4 inline-flex items-center rounded-full border border-border bg-white px-3 py-1 text-xs font-medium text-secondary">
+            Drag and drop or browse from your device
+          </div>
         </>
       )}
       {validationError ? (

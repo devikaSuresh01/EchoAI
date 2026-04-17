@@ -4,8 +4,8 @@ import toast from 'react-hot-toast';
 import { api } from '../api/adapter';
 import { parseApiError } from '../api/errors';
 import { withRetry } from '../api/retry';
-import { selectMeetingData, useAppStore } from '../stores/appStore';
-import type { ConfirmActionStatus } from '../types/meeting';
+import { useAppStore } from '../stores/appStore';
+import type { ConfirmActionStatus, MeetingData } from '../types/meeting';
 import { RiskBadge } from './RiskBadge';
 
 const ACTIONS = [
@@ -15,20 +15,34 @@ const ACTIONS = [
 ] as const;
 
 type RemovingState = Record<string, string>;
+const PAGE_SIZE = 8;
 
-export function SmartConfirmPanel(): JSX.Element | null {
-  const meetingData = useAppStore(selectMeetingData);
+interface SmartConfirmPanelProps {
+  meetingData: MeetingData;
+}
+
+export function SmartConfirmPanel({
+  meetingData,
+}: SmartConfirmPanelProps): JSX.Element | null {
   const updateActionItemStatus = useAppStore((state) => state.updateActionItemStatus);
   const pendingItems = useMemo(
-    () => meetingData?.actionItems.filter((item) => item.needsConfirmation) ?? [],
+    () => meetingData.actionItems.filter((item) => item.needsConfirmation),
     [meetingData],
   );
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [removingIds, setRemovingIds] = useState<RemovingState>({});
+  const [page, setPage] = useState(1);
 
-  if (meetingData === null || pendingItems.length === 0) {
+  if (pendingItems.length === 0) {
     return null;
   }
+
+  const totalPages = Math.max(1, Math.ceil(pendingItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleItems = pendingItems.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   const handleConfirm = async (
     itemId: string,
@@ -61,30 +75,43 @@ export function SmartConfirmPanel(): JSX.Element | null {
   };
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md">
-      <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-accent" />
-        <div>
-          <h2 className="text-lg font-semibold text-primary">Smart Confirmation Panel</h2>
-          <p className="text-xs text-secondary">
-            Review low-confidence AI status detections.
-          </p>
+    <section className="rounded-[28px] border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-accent" />
+          <div>
+            <h2 className="text-lg font-semibold text-primary">Smart Confirmation Panel</h2>
+            <p className="text-xs text-secondary">
+              Review low-confidence AI status detections.
+            </p>
+          </div>
         </div>
+        <span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+          Human Review
+        </span>
+      </div>
+      <div className="mb-4 flex items-center justify-between rounded-2xl bg-brand/70 px-3 py-2 text-xs text-secondary">
+        <p>
+          {pendingItems.length} items need review
+        </p>
+        <p>
+          Page {currentPage} of {totalPages}
+        </p>
       </div>
       <div className="space-y-4">
-        {pendingItems.map((item) => {
+        {visibleItems.map((item) => {
           const isRemoving = removingIds[item.id] !== undefined;
           const isBusy = loadingKey !== null;
 
           return (
             <article
               key={item.id}
-              className={`rounded-xl border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md ${
+              className={`rounded-2xl border border-border bg-gradient-to-br from-white to-brand p-4 shadow-sm transition-all duration-200 hover:shadow-md ${
                 isRemoving ? 'translate-x-3 opacity-0' : 'opacity-100'
               }`}
             >
               <div className="mb-3 flex flex-wrap items-center gap-3">
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-accent">
+                <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-accent">
                   AI Label
                 </span>
                 <RiskBadge risk={item.risk} score={item.score} status={item.status} />
@@ -117,7 +144,7 @@ export function SmartConfirmPanel(): JSX.Element | null {
                       onClick={() => {
                         void handleConfirm(item.id, action.value);
                       }}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                       <span>{action.label}</span>
@@ -128,6 +155,26 @@ export function SmartConfirmPanel(): JSX.Element | null {
             </article>
           );
         })}
+      </div>
+      <div className="mt-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          disabled={currentPage === 1}
+          aria-label="Go to previous smart confirmation page"
+          onClick={() => setPage(currentPage - 1)}
+          className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Previous
+        </button>
+        <button
+          type="button"
+          disabled={currentPage === totalPages}
+          aria-label="Go to next smart confirmation page"
+          onClick={() => setPage(currentPage + 1)}
+          className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Next
+        </button>
       </div>
     </section>
   );

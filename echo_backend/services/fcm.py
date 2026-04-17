@@ -1,59 +1,37 @@
-import base64
-import json
-import os
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from echo_backend.env import load_env
 from echo_backend.models import DeviceToken
-
-load_env()
-
-
-def _load_firebase_credentials(credentials_module):
-    credentials_json = (os.getenv("FIREBASE_CREDENTIALS_JSON") or "").strip()
-    if credentials_json:
-        return credentials_module.Certificate(json.loads(credentials_json))
-
-    credentials_b64 = (os.getenv("FIREBASE_CREDENTIALS_BASE64") or "").strip()
-    if credentials_b64:
-        decoded = base64.b64decode(credentials_b64).decode("utf-8")
-        return credentials_module.Certificate(json.loads(decoded))
-
-    credentials_path = (os.getenv("FIREBASE_CREDENTIALS_PATH") or "").strip()
-    if credentials_path:
-        return credentials_module.Certificate(credentials_path)
-
-    return None
+from echo_backend.services.firebase_admin import get_firebase_admin_app
 
 
-async def send_high_risk_notification(db: AsyncSession, items: list[dict]) -> None:
+async def send_high_risk_notification(
+    db: AsyncSession,
+    meeting_id: str,
+    items: list[dict],
+    firebase_uid: str,
+) -> None:
     if not items:
         return
 
-    result = await db.execute(select(DeviceToken.token))
+    result = await db.execute(
+        select(DeviceToken.token).where(DeviceToken.firebase_uid == firebase_uid)
+    )
     tokens = [row[0] for row in result.all()]
     if not tokens:
         return
 
     try:
-        import firebase_admin
-        from firebase_admin import credentials, messaging
+        from firebase_admin import messaging
     except ImportError:
         return
 
-    app = None
     try:
-        app = firebase_admin.get_app()
-    except ValueError:
-        try:
-            cred = _load_firebase_credentials(credentials)
-            if cred is None:
-                return
-            app = firebase_admin.initialize_app(cred)
-        except Exception:
-            return
+        app = get_firebase_admin_app()
+    except Exception:
+        return
+    if app is None:
+        return
 
     top_item = max(items, key=lambda item: item.get("score", 0))
     message = messaging.MulticastMessage(
@@ -63,7 +41,8 @@ async def send_high_risk_notification(db: AsyncSession, items: list[dict]) -> No
             body=top_item.get("task", "")[:80],
         ),
         data={
-            "item_id": str(top_item.get("id", "")),
+            "meetingId": str(meeting_id),
+            "itemId": str(top_item.get("id", "")),
             "risk": str(top_item.get("risk", "")),
             "score": str(top_item.get("score", 0)),
         },

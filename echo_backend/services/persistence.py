@@ -20,6 +20,7 @@ def _parse_participants(participants: str | None) -> list[str]:
 async def save_meeting(
     db: AsyncSession,
     meeting_id: str,
+    firebase_uid: str,
     ai_result: dict,
     *,
     title: str | None = None,
@@ -28,6 +29,7 @@ async def save_meeting(
 ) -> None:
     meeting = Meeting(
         meeting_id=meeting_id,
+        firebase_uid=firebase_uid,
         summary=ai_result["summary"],
         high_risk_count=ai_result["high_risk_count"],
         title=title.strip() if title else None,

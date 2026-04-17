@@ -83,6 +83,10 @@ export interface ItemApiResponse extends ProcessFileApiItem {
   created_at: string;
 }
 
+export interface DashboardMeetingApiResponse extends MeetingListApiResponse {
+  items: ItemApiResponse[];
+}
+
 export interface UpdateStatusResponse {
   ok: true;
 }
@@ -94,7 +98,6 @@ export interface UpdateStatusRequest {
 
 export interface RegisterNotificationRequest {
   token: string;
-  userId: string;
 }
 
 export interface UnregisterNotificationRequest {

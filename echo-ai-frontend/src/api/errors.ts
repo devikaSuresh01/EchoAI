@@ -72,6 +72,14 @@ export function parseApiError(err: unknown): AppError {
     };
   }
 
+  if (status === 401) {
+    return {
+      code: 'UNKNOWN',
+      message: detail ?? 'You need to sign in first.',
+      retry: false,
+    };
+  }
+
   if (status === 429) {
     return {
       code: 'QUOTA_EXCEEDED',

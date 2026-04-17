@@ -10,7 +10,6 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     baseURL: 'http://127.0.0.1:5173',
     browserName: 'chromium',
-    channel: 'msedge',
     headless: true,
   },
   webServer: {

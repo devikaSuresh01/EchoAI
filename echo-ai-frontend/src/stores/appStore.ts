@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import type { ConfirmActionStatus, MeetingData } from '../types/meeting';
-import { loadMeetings, saveMeetings } from '../utils/storage';
 
 interface AppState {
   meetings: MeetingData[];
   currentMeetingId: string | null;
   selectedItemId: string | null;
+  clearMeetings: () => void;
   setMeetings: (meetings: MeetingData[]) => void;
   addMeeting: (meeting: MeetingData) => void;
   setMeetingData: (meeting: MeetingData | null) => void;
@@ -16,8 +16,6 @@ interface AppState {
     status: ConfirmActionStatus,
   ) => void;
 }
-
-const initialMeetings = loadMeetings();
 
 function findMeeting(
   meetings: MeetingData[],
@@ -58,11 +56,17 @@ export const selectMeetingData = (state: AppState): MeetingData | null =>
   findMeeting(state.meetings, state.currentMeetingId);
 
 export const useAppStore = create<AppState>((set) => ({
-  meetings: initialMeetings,
-  currentMeetingId: initialMeetings[0]?.id ?? null,
+  meetings: [],
+  currentMeetingId: null,
   selectedItemId: null,
+  clearMeetings: () => {
+    set({
+      meetings: [],
+      currentMeetingId: null,
+      selectedItemId: null,
+    });
+  },
   setMeetings: (meetings) => {
-    saveMeetings(meetings);
     set((state) => {
       const currentMeetingId = resolveCurrentMeetingId(
         meetings,
@@ -83,8 +87,6 @@ export const useAppStore = create<AppState>((set) => ({
         meeting,
         ...state.meetings.filter((entry) => entry.id !== meeting.id),
       ];
-
-      saveMeetings(meetings);
 
       return {
         meetings,
@@ -134,8 +136,6 @@ export const useAppStore = create<AppState>((set) => ({
         state.currentMeetingId,
       );
       const meeting = findMeeting(meetings, currentMeetingId);
-
-      saveMeetings(meetings);
 
       return {
         meetings,

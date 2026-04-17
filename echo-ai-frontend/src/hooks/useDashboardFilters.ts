@@ -22,7 +22,7 @@ function useDebounce<T>(value: T, delayMs: number): T {
   return debouncedValue;
 }
 
-export function useDashboardFilters(items: ActionItem[]) {
+export function useDashboardFilters(items: ActionItem[], pageSize = 10) {
   const [filters, setFilters] = useState<FiltersState>({
     risk: 'all',
     status: 'all',
@@ -70,7 +70,6 @@ export function useDashboardFilters(items: ActionItem[]) {
     return nextItems;
   }, [debouncedOwner, filters.risk, filters.sort, filters.status, items]);
 
-  const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const paginatedItems = filteredItems.slice(
