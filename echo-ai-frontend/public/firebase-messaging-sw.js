@@ -1,13 +1,8 @@
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+importScripts('/firebase-messaging-config.js');
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyA457B2eL45RHp9UipOhTWd6Rxv1mwEwyE',
-  authDomain: 'echoai-27576.firebaseapp.com',
-  projectId: 'echoai-27576',
-  messagingSenderId: '944967725771',
-  appId: '1:944967725771:web:682c26ef5a73d5ac4c214e',
-};
+const firebaseConfig = self.__FIREBASE_CONFIG__ ?? {};
 
 const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);
 
