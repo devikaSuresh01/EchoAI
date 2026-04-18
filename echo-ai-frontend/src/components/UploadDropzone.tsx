@@ -27,13 +27,13 @@ export function UploadDropzone({
         ? {
             accept: '.mp3,.wav,.m4a',
             label: 'Drop an audio file here or click to browse',
-            hint: 'Supported: .mp3, .wav, .m4a (max 40 MB)',
+            hint: 'Supported: .mp3, .wav, .m4a (max 3 MB)',
             Icon: FileAudio,
           }
         : {
             accept: '.txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             label: 'Drop a transcript file here or click to browse',
-            hint: 'Supported: .txt, .docx, .pdf (max 10 MB)',
+            hint: 'Supported: .txt, .docx, .pdf (max 30 KB)',
             Icon: FileText,
           },
     [mode],

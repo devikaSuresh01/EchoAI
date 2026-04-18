@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 
@@ -11,7 +12,7 @@ async def extract_text(content: bytes, ext: str) -> str:
         temp_path = temp_file.name
 
     try:
-        return extract_text_from_file(temp_path)
+        return await asyncio.to_thread(extract_text_from_file, temp_path)
     finally:
         try:
             os.remove(temp_path)

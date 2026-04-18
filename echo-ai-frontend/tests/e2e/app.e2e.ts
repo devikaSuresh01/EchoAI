@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
-import type { ProcessFileApiResponse } from '../../src/types/meeting';
+import type { ProcessFileApiResponse, UploadJobApiResponse } from '../../src/types/meeting';
 import {
   createPaginationResponse,
   createProcessFileResponse,
@@ -41,19 +41,59 @@ async function fulfillJson(
 
 async function uploadMeeting(
   page: Page,
-  _response: ProcessFileApiResponse,
+  response: ProcessFileApiResponse,
   installProcessHandler: (route: Route) => Promise<void>,
   options?: {
     expectLoading?: boolean;
     mode?: 'audio' | 'transcript';
+    installJobHandler?: (route: Route) => Promise<void>;
   },
 ): Promise<void> {
   const mode = options?.mode ?? 'audio';
+  const jobId = `job-${response.meeting_id}`;
+  let pollCount = 0;
 
   await page.route(
     mode === 'audio' ? '**/process-audio' : '**/process-file',
     installProcessHandler,
   );
+  await page.route('**/upload-jobs/*', async (route) => {
+    if (options?.installJobHandler) {
+      await options.installJobHandler(route);
+      return;
+    }
+
+    pollCount += 1;
+    let body: UploadJobApiResponse;
+    if (pollCount === 1) {
+      body = {
+        job_id: jobId,
+        meeting_id: response.meeting_id,
+        status: mode === 'audio' ? 'transcribing' : 'analyzing',
+        created_at: '2026-04-17T09:00:00.000Z',
+        updated_at: '2026-04-17T09:00:01.000Z',
+      };
+    } else if (pollCount === 2) {
+      body = {
+        job_id: jobId,
+        meeting_id: response.meeting_id,
+        status: 'saving',
+        created_at: '2026-04-17T09:00:00.000Z',
+        updated_at: '2026-04-17T09:00:02.000Z',
+      };
+    } else {
+      body = {
+        job_id: jobId,
+        meeting_id: response.meeting_id,
+        status: 'completed',
+        result: response,
+        created_at: '2026-04-17T09:00:00.000Z',
+        updated_at: '2026-04-17T09:00:03.000Z',
+      };
+    }
+
+    await fulfillJson(route, 200, body);
+  });
   await page.route('**/get-dashboard', async (route) => {
     await fulfillJson(route, 200, []);
   });
@@ -79,7 +119,7 @@ async function uploadMeeting(
     .click();
   if (options?.expectLoading) {
     await expect(page.getByRole('progressbar')).toBeVisible();
-    await expect(page.getByText('Processing your file...')).toBeVisible();
+    await expect(page.getByText(/Upload received\.|Processing your file\.\.\./i)).toBeVisible();
   }
   await page.waitForURL('**/dashboard');
   await expect(
@@ -98,7 +138,11 @@ test('completes the upload flow under slow real-api conditions', async ({ page }
     await new Promise((resolve) => {
       setTimeout(resolve, 3200);
     });
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   }, { expectLoading: true });
 
   await expect(page.getByText('Alice')).toBeVisible();
@@ -120,7 +164,11 @@ test('confirms a low-confidence item and removes it after success animation', as
     await fulfillJson(route, 200, { ok: true });
   });
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await page.getByRole('link', { name: 'Open Review Workspace' }).click();
@@ -143,7 +191,11 @@ test('retries a 429 upload response and still reaches the dashboard', async ({ p
       return;
     }
 
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   expect(attempts).toBe(2);
@@ -158,7 +210,11 @@ test('recovers safely from a 500 status update failure', async ({ page }) => {
     await fulfillJson(route, 500, { error: 'server error' });
   });
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await page.getByRole('link', { name: 'Open Review Workspace' }).click();
@@ -177,7 +233,11 @@ test('keeps table selection in sync across pagination and notification navigatio
   const response = createPaginationResponse();
 
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await page.getByRole('button', { name: /View high risk item High risk follow-up 5/i }).click();
@@ -212,7 +272,11 @@ test('keeps the review workspace visible when filters produce zero matching item
   const response = createProcessFileResponse();
 
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await page.getByRole('link', { name: 'Open Review Workspace' }).click();
@@ -235,7 +299,11 @@ test('clears the selected ticket when filters exclude it but other rows remain',
   const response = createPaginationResponse();
 
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await page.getByRole('link', { name: 'Open Review Workspace' }).click();
@@ -366,7 +434,11 @@ test('reopens prior analyses from the recent rail and searchable picker', async 
   });
 
   await uploadMeeting(page, currentResponse, async (route) => {
-    await fulfillJson(route, 200, currentResponse);
+    await fulfillJson(route, 200, {
+      job_id: `job-${currentResponse.meeting_id}`,
+      meeting_id: currentResponse.meeting_id,
+      status: 'queued',
+    });
   });
   await page.route('**/get-dashboard', async (route) => {
     await fulfillJson(route, 200, [
@@ -429,7 +501,11 @@ test('clears prior meeting history after sign-out before the next user session l
   });
 
   await uploadMeeting(page, response, async (route) => {
-    await fulfillJson(route, 200, response);
+    await fulfillJson(route, 200, {
+      job_id: `job-${response.meeting_id}`,
+      meeting_id: response.meeting_id,
+      status: 'queued',
+    });
   });
 
   await expect(page.getByRole('heading', { name: /Validation Meeting/i })).toBeVisible();

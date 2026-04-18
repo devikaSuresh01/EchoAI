@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tempfile
 import uuid
@@ -96,7 +97,7 @@ async def transcribe_audio(content: bytes, filename: str | None) -> dict:
         temp_path = temp_file.name
 
     try:
-        transcript = get_transcript_from_audio(temp_path)
+        transcript = await asyncio.to_thread(get_transcript_from_audio, temp_path)
     finally:
         try:
             os.remove(temp_path)
@@ -122,4 +123,4 @@ async def analyze_transcript(meeting_id: str, transcript: str) -> dict:
 
     from aimodel.service import analyze_transcript as run_aimodel_analysis
 
-    return run_aimodel_analysis(meeting_id, transcript)
+    return await asyncio.to_thread(run_aimodel_analysis, meeting_id, transcript)

@@ -116,10 +116,9 @@ describe('realApi.processFile', () => {
   it('uses an extended timeout for uploads and lets the browser set multipart headers', async () => {
     clientMock.post.mockResolvedValueOnce({
       data: {
+        job_id: 'job-upload',
         meeting_id: 'mtg-upload',
-        summary: 'Summary',
-        high_risk_count: 0,
-        items: [],
+        status: 'queued',
       },
     });
 
@@ -147,5 +146,31 @@ describe('realApi.processFile', () => {
 
     const requestConfig = clientMock.post.mock.calls[0]?.[2];
     expect(requestConfig.headers).toBeUndefined();
+  });
+});
+
+describe('realApi.getUploadJob', () => {
+  it('loads upload job status from the polling endpoint', async () => {
+    clientMock.get.mockResolvedValueOnce({
+      data: {
+        job_id: 'job-upload',
+        meeting_id: 'mtg-upload',
+        status: 'completed',
+        result: {
+          meeting_id: 'mtg-upload',
+          summary: 'Summary',
+          high_risk_count: 0,
+          items: [],
+        },
+        created_at: '2026-04-17T10:00:00.000Z',
+        updated_at: '2026-04-17T10:00:02.000Z',
+      },
+    });
+
+    const job = await realApi.getUploadJob('job-upload');
+
+    expect(clientMock.get).toHaveBeenCalledWith('/upload-jobs/job-upload');
+    expect(job.status).toBe('completed');
+    expect(job.result?.meeting_id).toBe('mtg-upload');
   });
 });

@@ -24,6 +24,32 @@ interface UseUploadResult {
   resetStatus: () => void;
 }
 
+const JOB_POLL_INTERVAL_MS = 1000;
+const JOB_POLL_MAX_DURATION_MS = 30 * 60 * 1000;
+
+function wait(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, delayMs);
+  });
+}
+
+function toUploadStatus(status: string): UploadStatus {
+  if (
+    status === 'queued' ||
+    status === 'transcribing' ||
+    status === 'analyzing' ||
+    status === 'saving'
+  ) {
+    return status;
+  }
+
+  if (status === 'completed') {
+    return 'success';
+  }
+
+  return 'error';
+}
+
 export function useUpload(): UseUploadResult {
   const navigate = useNavigate();
   const addMeeting = useAppStore((state) => state.addMeeting);
@@ -38,17 +64,44 @@ export function useUpload(): UseUploadResult {
     }
 
     const meetingId = generateMeetingId();
-    setStatus(mode === 'audio' ? 'transcribing' : 'analyzing');
+    setStatus('queued');
 
     try {
-      const raw = await withRetry(() =>
+      const queued = await withRetry(() =>
         api.processFile(file, meetingId, {
           mode,
           meta,
         }),
       );
+      let raw = null;
+      const pollStartedAt = Date.now();
 
-      setStatus('analyzing');
+      while (true) {
+        const job = await withRetry(() => api.getUploadJob(queued.job_id));
+        const nextStatus = toUploadStatus(job.status);
+        setStatus(nextStatus);
+
+        if (job.status === 'completed') {
+          raw = job.result ?? null;
+          break;
+        }
+
+        if (job.status === 'failed') {
+          throw new Error(job.error_message ?? 'Upload failed.');
+        }
+
+        if (Date.now() - pollStartedAt > JOB_POLL_MAX_DURATION_MS) {
+          throw new Error(
+            'Analysis is still running longer than expected. Please check again in a moment.',
+          );
+        }
+
+        await wait(JOB_POLL_INTERVAL_MS);
+      }
+
+      if (!raw) {
+        throw new Error('Upload completed without a result.');
+      }
 
       const meeting = transformMeetingData(raw, {
         ...meta,
@@ -72,7 +125,11 @@ export function useUpload(): UseUploadResult {
 
   return {
     status,
-    isBusy: status === 'transcribing' || status === 'analyzing',
+    isBusy:
+      status === 'queued' ||
+      status === 'transcribing' ||
+      status === 'analyzing' ||
+      status === 'saving',
     handleUpload,
     resetStatus: () => setStatus('idle'),
   };

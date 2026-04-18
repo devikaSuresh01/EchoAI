@@ -2,16 +2,20 @@ import type { UploadStatus } from '../types/upload';
 
 const STATUS_COPY: Record<UploadStatus, string> = {
   idle: '',
-  transcribing: 'Processing your file...',
-  analyzing: 'Analysing content...',
+  queued: 'Upload received. Your analysis job is still processing...',
+  transcribing: 'Still processing your recording...',
+  analyzing: 'Still analysing content...',
+  saving: 'Saving meeting results...',
   success: 'Analysis complete. Redirecting to dashboard...',
   error: 'Upload failed. Please try again.',
 };
 
 const STATUS_DETAIL: Record<UploadStatus, string> = {
   idle: '',
-  transcribing: 'Preparing the meeting transcript and preserving the upload context.',
-  analyzing: 'Structuring decisions, owners, deadlines, confidence, and risk.',
+  queued: 'The upload is safely queued and the backend worker is still preparing the job.',
+  transcribing: 'Transcription can take longer for larger recordings or the first model load.',
+  analyzing: 'Echo AI is still extracting owners, deadlines, confidence, and risk across the transcript.',
+  saving: 'Finalizing the meeting record and preparing the dashboard payload.',
   success: 'Your dashboard is ready with extracted action items and review prompts.',
   error: 'Nothing was changed on the backend. Check the file and try again safely.',
 };

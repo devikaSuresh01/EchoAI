@@ -35,9 +35,21 @@ function getButtonContent(
   mode: UploadMode,
   status: UploadStatus,
 ): { label: string; Icon: typeof Mic } {
-  if (status === 'transcribing' || status === 'analyzing') {
+  if (
+    status === 'queued' ||
+    status === 'transcribing' ||
+    status === 'analyzing' ||
+    status === 'saving'
+  ) {
     return {
-      label: status === 'transcribing' ? 'Processing Recording' : 'Analysing Content',
+      label:
+        status === 'queued'
+          ? 'Queueing Upload'
+          : status === 'transcribing'
+            ? 'Processing Recording'
+            : status === 'saving'
+              ? 'Saving Results'
+              : 'Analysing Content',
       Icon: Loader2,
     };
   }
@@ -143,7 +155,7 @@ export default function InputPage(): JSX.Element {
             <div className="grid gap-3 text-sm text-secondary sm:grid-cols-3 lg:max-w-xl">
               <div className="rounded-2xl border border-border bg-brand/70 px-4 py-3">
                 <p className="font-semibold text-primary">Transcript</p>
-                <p className="mt-1 text-xs leading-5">Best for faster analysis and uploaded notes.</p>
+                <p className="mt-1 text-xs leading-5">Best for faster queued analysis and uploaded notes.</p>
               </div>
               <div className="rounded-2xl border border-border bg-brand/70 px-4 py-3">
                 <p className="font-semibold text-primary">Recording</p>
@@ -237,8 +249,8 @@ export default function InputPage(): JSX.Element {
             <div className="grid gap-3 sm:grid-cols-3">
               {[
                 ['Data handling', 'Files stay within the existing authenticated Echo AI workflow.'],
-                ['Processing path', mode === 'audio' ? 'Recording will be transcribed first, then analyzed.' : 'Transcript will be analyzed directly without transcription.'],
-                ['Result delivery', 'You’ll land in the dashboard with extracted actions, confidence, and risk.'],
+                ['Processing path', mode === 'audio' ? 'Recording will be queued, transcribed, analyzed, and saved in the background.' : 'Transcript will be queued and analyzed directly without transcription.'],
+                ['Result delivery', 'You’ll land in the dashboard after the queued job completes with extracted actions, confidence, and risk.'],
               ].map(([title, description]) => (
                 <div key={title} className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                   <p className="text-sm font-semibold text-primary">{title}</p>
@@ -277,7 +289,12 @@ export default function InputPage(): JSX.Element {
             >
               <buttonContent.Icon
                 className={`h-4 w-4 ${
-                  status === 'transcribing' || status === 'analyzing' ? 'animate-spin' : ''
+                  status === 'queued' ||
+                  status === 'transcribing' ||
+                  status === 'analyzing' ||
+                  status === 'saving'
+                    ? 'animate-spin'
+                    : ''
                 }`}
               />
               <span>{buttonContent.label}</span>

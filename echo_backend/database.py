@@ -19,7 +19,12 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(get_async_database_url(DATABASE_URL), future=True)
+engine = create_async_engine(
+    get_async_database_url(DATABASE_URL),
+    future=True,
+    pool_pre_ping=True,
+    pool_recycle=int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800")),
+)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 

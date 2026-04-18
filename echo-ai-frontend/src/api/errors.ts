@@ -123,6 +123,14 @@ export function parseApiError(err: unknown): AppError {
     };
   }
 
+  if (err instanceof Error && err.message.trim().length > 0) {
+    return {
+      code: 'UNKNOWN',
+      message: err.message,
+      retry: false,
+    };
+  }
+
   return {
     code: 'UNKNOWN',
     message: 'Something went wrong.',

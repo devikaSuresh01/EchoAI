@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from echo_backend.env import load_env
 from echo_backend.routers import meetings, notifications, process, status, transcribe
+from echo_backend.services.upload_jobs import resume_upload_jobs
 
 load_env()
 
@@ -25,6 +26,12 @@ app.include_router(process.router)
 app.include_router(meetings.router)
 app.include_router(status.router)
 app.include_router(notifications.router)
+
+
+@app.on_event("startup")
+async def startup_upload_jobs() -> None:
+    app.state.upload_job_tasks = {}
+    await resume_upload_jobs(app)
 
 
 @app.get("/health")

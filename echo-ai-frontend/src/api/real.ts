@@ -9,8 +9,9 @@ import type {
   MeetingData,
   MeetingListApiResponse,
   ProcessUploadOptions,
-  ProcessFileApiResponse,
   RegisterNotificationRequest,
+  UploadJobApiResponse,
+  UploadJobQueuedApiResponse,
   UnregisterNotificationRequest,
   UpdateStatusResponse,
 } from '../types/meeting';
@@ -94,11 +95,11 @@ export const realApi = {
     file: File,
     meetingId: string,
     options: ProcessUploadOptions,
-  ): Promise<ProcessFileApiResponse> {
+  ): Promise<UploadJobQueuedApiResponse> {
     const payload = createUploadPayload(file, meetingId, options);
     const endpoint = options.mode === 'audio' ? '/process-audio' : '/process-file';
 
-    const response = await client.post<ProcessFileApiResponse>(
+    const response = await client.post<UploadJobQueuedApiResponse>(
       endpoint,
       payload,
       {
@@ -106,6 +107,11 @@ export const realApi = {
       },
     );
 
+    return response.data;
+  },
+
+  async getUploadJob(jobId: string): Promise<UploadJobApiResponse> {
+    const response = await client.get<UploadJobApiResponse>(`/upload-jobs/${jobId}`);
     return response.data;
   },
 

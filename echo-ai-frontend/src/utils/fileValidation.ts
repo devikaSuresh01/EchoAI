@@ -28,8 +28,8 @@ const TRANSCRIPT_EXT = new Set([
   '.docx',
 ]);
 
-const MAX_AUDIO_SIZE_MB = 40;
-const MAX_TRANSCRIPT_SIZE_MB = 10;
+const MAX_AUDIO_SIZE_BYTES = 3 * 1024 * 1024;
+const MAX_TRANSCRIPT_SIZE_BYTES = 30 * 1024;
 
 export interface ValidationResult {
   valid: boolean;
@@ -65,11 +65,13 @@ export function validateFile(
     }
   }
 
-  const maxSizeMb = mode === 'audio' ? MAX_AUDIO_SIZE_MB : MAX_TRANSCRIPT_SIZE_MB;
-  if (file.size > maxSizeMb * 1024 * 1024) {
+  const maxSizeBytes = mode === 'audio' ? MAX_AUDIO_SIZE_BYTES : MAX_TRANSCRIPT_SIZE_BYTES;
+  const maxSizeLabel = mode === 'audio' ? '3 MB' : '30 KB';
+
+  if (file.size > maxSizeBytes) {
     return {
       valid: false,
-      reason: `File too large. Max size is ${maxSizeMb} MB.`,
+      reason: `File too large. Max size is ${maxSizeLabel}.`,
     };
   }
 

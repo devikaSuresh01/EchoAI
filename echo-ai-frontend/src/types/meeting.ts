@@ -69,6 +69,30 @@ export interface ProcessFileApiResponse {
   items: ProcessFileApiItem[];
 }
 
+export type UploadJobStatus =
+  | 'queued'
+  | 'transcribing'
+  | 'analyzing'
+  | 'saving'
+  | 'completed'
+  | 'failed';
+
+export interface UploadJobQueuedApiResponse {
+  job_id: string;
+  meeting_id: string;
+  status: UploadJobStatus;
+}
+
+export interface UploadJobApiResponse {
+  job_id: string;
+  meeting_id: string;
+  status: UploadJobStatus;
+  error_message?: string | null;
+  result?: ProcessFileApiResponse | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface MeetingListApiResponse {
   meeting_id: string;
   summary: string;

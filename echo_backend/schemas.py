@@ -42,12 +42,29 @@ class ItemResponse(BaseModel):
 class ProcessFileResponse(BaseModel):
     meeting_id: str
     summary: str
+    transcript: str | None = None
     high_risk_count: int
     items: list[ItemResponse]
 
 
 class ProcessAudioResponse(ProcessFileResponse):
     transcript: str
+
+
+class UploadJobQueuedResponse(BaseModel):
+    job_id: str
+    meeting_id: str
+    status: str
+
+
+class UploadJobStatusResponse(BaseModel):
+    job_id: str
+    meeting_id: str
+    status: str
+    error_message: str | None = None
+    result: ProcessFileResponse | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class MeetingListItem(BaseModel):

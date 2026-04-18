@@ -197,6 +197,9 @@ DATABASE_URL=sqlite+aiosqlite:///./echoai-local.db
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 GEMINI_API_KEY=
 ALLOW_STUB_AI=true
+GEMINI_CHUNK_CONCURRENCY=2
+DB_POOL_RECYCLE_SECONDS=1800
+AUTO_CREATE_UPLOAD_JOBS_TABLE=true
 FIREBASE_CREDENTIALS_BASE64=
 ```
 
@@ -216,6 +219,9 @@ DATABASE_URL=sqlite+aiosqlite:///./echoai-local.db
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 GEMINI_API_KEY=your_real_gemini_api_key
 ALLOW_STUB_AI=false
+GEMINI_CHUNK_CONCURRENCY=2
+DB_POOL_RECYCLE_SECONDS=1800
+AUTO_CREATE_UPLOAD_JOBS_TABLE=false
 FIREBASE_CREDENTIALS_BASE64=your_base64_encoded_firebase_service_account_json
 ```
 
@@ -238,6 +244,16 @@ Backend variable meaning:
 - `ALLOW_STUB_AI`
   - set `true` for local fallback AI
   - set `false` for real Gemini analysis
+- `GEMINI_CHUNK_CONCURRENCY`
+  - bounded parallelism for transcript chunk extraction
+  - recommended default: `2`
+- `DB_POOL_RECYCLE_SECONDS`
+  - recycles long-lived backend DB connections to reduce stale connection issues
+  - recommended default: `1800`
+- `AUTO_CREATE_UPLOAD_JOBS_TABLE`
+  - local-only fallback for the async upload jobs table
+  - recommended local value: `true` only when your database is behind and you need the backend to start
+  - keep `false` in normal environments and prefer Alembic migrations
 - `FIREBASE_CREDENTIALS_BASE64`
   - base64-encoded Firebase service account JSON
   - required only if you want real Firebase-authenticated backend flows
@@ -245,6 +261,18 @@ Backend variable meaning:
 ### Step 3: Run backend migrations
 
 From the repo root:
+
+```bash
+alembic -c echo_backend/alembic.ini upgrade head
+```
+
+If your local backend is failing to start only because `upload_jobs` is missing, you can temporarily set:
+
+```env
+AUTO_CREATE_UPLOAD_JOBS_TABLE=true
+```
+
+This is a local development fallback only. Alembic remains the source of truth, and the recommended recovery command is still:
 
 ```bash
 alembic -c echo_backend/alembic.ini upgrade head
@@ -431,8 +459,8 @@ Frontend test coverage includes:
 - most backend routes require a valid Firebase ID token in real mode
 - if `VITE_USE_MOCK=false`, the frontend should have valid Firebase web config
 - if `ALLOW_STUB_AI=false`, the backend must have `GEMINI_API_KEY`
-- transcript uploads are limited to `10 MB`
-- audio uploads are limited to `40 MB`
+- transcript uploads are limited to `30 KB`
+- audio uploads are limited to `3 MB`
 - `meeting_id` must be unique per processed meeting
 
 ## Known Limitations

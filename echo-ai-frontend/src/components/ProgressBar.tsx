@@ -9,6 +9,17 @@ export function ProgressBar({ status }: ProgressBarProps): JSX.Element | null {
     return null;
   }
 
+  const currentStage =
+    status === 'queued'
+      ? 'Queued'
+      : status === 'transcribing'
+        ? 'Transcription'
+        : status === 'analyzing'
+          ? 'Analysis'
+          : status === 'saving'
+            ? 'Saving'
+            : 'In progress';
+
   return (
     <div className="space-y-2">
       <div
@@ -20,8 +31,8 @@ export function ProgressBar({ status }: ProgressBarProps): JSX.Element | null {
         <div className="h-2 animate-indeterminate rounded-full bg-accent" />
       </div>
       <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.22em] text-secondary">
-        <span>Intake</span>
-        <span>{status === 'transcribing' ? 'Transcription' : 'Analysis'}</span>
+        <span>Queued</span>
+        <span>{currentStage}</span>
         <span>Dashboard</span>
       </div>
     </div>

@@ -1,7 +1,18 @@
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -101,3 +112,41 @@ class DeviceToken(Base):
         default=utcnow,
         onupdate=utcnow,
     )
+
+
+class UploadJob(Base):
+    __tablename__ = "upload_jobs"
+    __table_args__ = (UniqueConstraint("meeting_id", name="uq_upload_jobs_meeting_id"),)
+
+    job_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    firebase_uid: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    source_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_type: Mapped[str | None] = mapped_column(Text, nullable=True)
+    file_ext: Mapped[str] = mapped_column(String(16), nullable=False)
+    file_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meeting_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    participants: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transcript: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    language: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    result_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            "job_id": self.job_id,
+            "meeting_id": self.meeting_id,
+            "status": self.status,
+            "error_message": self.error_message,
+            "result": self.result_payload,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }

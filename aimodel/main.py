@@ -9,7 +9,12 @@ from pydantic import BaseModel
 from aimodel.ai_processing.file_reader import extract_text_from_file
 from aimodel.service import analyze_transcript, get_chunk_delay, get_max_words, get_summary_delay
 from aimodel.transcription.service import SUPPORTED_AUDIO_EXTENSIONS, get_transcript_from_audio, get_transcript_from_text
-from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
+from constants.echoai import (
+    AUDIO_UPLOAD_TOO_LARGE_MESSAGE,
+    MAX_AUDIO_UPLOAD_BYTES,
+    MAX_TRANSCRIPT_UPLOAD_BYTES,
+    TRANSCRIPT_UPLOAD_TOO_LARGE_MESSAGE,
+)
 
 load_dotenv()
 
@@ -79,6 +84,8 @@ async def process_file(
 
     tmp_path = _write_upload_to_temp(file, ext)
     try:
+        if os.path.getsize(tmp_path) > MAX_TRANSCRIPT_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=TRANSCRIPT_UPLOAD_TOO_LARGE_MESSAGE)
         try:
             transcript = extract_text_from_file(tmp_path)
         except ValueError as exc:

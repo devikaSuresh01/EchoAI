@@ -44,12 +44,12 @@ describe('validateFile', () => {
     });
   });
 
-  it('rejects transcript files larger than 10 MB', () => {
-    const file = createFile('large.pdf', 'application/pdf', 11 * 1024 * 1024);
+  it('rejects transcript files larger than 30 KB', () => {
+    const file = createFile('large.pdf', 'application/pdf', 30 * 1024 + 1);
 
     expect(validateFile(file, 'transcript')).toEqual({
       valid: false,
-      reason: 'File too large. Max size is 10 MB.',
+      reason: 'File too large. Max size is 30 KB.',
     });
   });
 });

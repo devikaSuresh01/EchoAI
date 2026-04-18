@@ -1,16 +1,36 @@
 import asyncio
 import sys
+import time
 import types
 
 from sqlalchemy import select
 
-from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
+from constants.echoai import (
+    AUDIO_UPLOAD_TOO_LARGE_MESSAGE,
+    MAX_AUDIO_UPLOAD_BYTES,
+    MAX_TRANSCRIPT_UPLOAD_BYTES,
+    TRANSCRIPT_UPLOAD_TOO_LARGE_MESSAGE,
+)
 from echo_backend.models import DeviceToken, Meeting
 from echo_backend.services.fcm import send_high_risk_notification
 
 
 def auth_headers(token: str = "valid-token") -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
+
+
+def wait_for_job_completion(client, queued_response, *, headers=None) -> dict:
+    job_id = queued_response.json()["job_id"]
+
+    for _ in range(200):
+        response = client.get(f"/upload-jobs/{job_id}", headers=headers)
+        assert response.status_code == 200
+        payload = response.json()
+        if payload["status"] in {"completed", "failed"}:
+            return payload
+        time.sleep(0.01)
+
+    raise AssertionError(f"upload job {job_id} did not finish in time")
 
 
 def test_health(client):
@@ -50,7 +70,7 @@ def test_process_file_rejects_unsupported_type(client):
 
 
 def test_process_file_persists_meeting_and_items(client, sessionmaker_fixture):
-    response = client.post(
+    queued = client.post(
         "/process-file",
         files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
         data={
@@ -61,8 +81,9 @@ def test_process_file_persists_meeting_and_items(client, sessionmaker_fixture):
         },
     )
 
-    assert response.status_code == 200
-    payload = response.json()
+    assert queued.status_code == 200
+    assert queued.json()["status"] == "queued"
+    payload = wait_for_job_completion(client, queued)["result"]
     assert payload["meeting_id"] == "mtg_1"
     assert payload["items"]
     assert any(item["needs_confirmation"] for item in payload["items"])
@@ -100,6 +121,8 @@ def test_get_dashboard_returns_meetings_with_items(client):
 
     assert first.status_code == 200
     assert second.status_code == 200
+    wait_for_job_completion(client, first)
+    wait_for_job_completion(client, second)
 
     dashboard = client.get("/get-dashboard")
     assert dashboard.status_code == 200
@@ -145,6 +168,8 @@ def test_meeting_reads_are_scoped_to_current_user(raw_client, monkeypatch):
 
     assert first.status_code == 200
     assert second.status_code == 200
+    wait_for_job_completion(raw_client, first, headers=auth_headers("owner-token"))
+    wait_for_job_completion(raw_client, second, headers=auth_headers("other-token"))
 
     meetings = raw_client.get("/get-meetings", headers=auth_headers("owner-token"))
     dashboard = raw_client.get("/get-dashboard", headers=auth_headers("owner-token"))
@@ -188,7 +213,8 @@ def test_process_meeting_alias_matches_canonical(client):
 
     response = client.post("/process-meeting", files=file_payload, data=data)
     assert response.status_code == 200
-    assert response.json()["meeting_id"] == "mtg_alias"
+    payload = wait_for_job_completion(client, response)["result"]
+    assert payload["meeting_id"] == "mtg_alias"
 
 
 def test_get_items_missing_meeting_returns_404(client):
@@ -198,12 +224,13 @@ def test_get_items_missing_meeting_returns_404(client):
 
 
 def test_update_status_validates_and_clears_confirmation(client):
-    processed = client.post(
+    queued = client.post(
         "/process-file",
         files={"file": ("meeting.txt", b"Alice will review privacy controls next sprint.", "text/plain")},
         data={"meeting_id": "mtg_status"},
     )
-    item_id = processed.json()["items"][0]["id"]
+    processed = wait_for_job_completion(client, queued)
+    item_id = processed["result"]["items"][0]["id"]
 
     update = client.post("/update-status", json={"item_id": item_id, "status": "done"})
     assert update.status_code == 200
@@ -242,7 +269,7 @@ def test_update_status_is_scoped_to_current_user(raw_client, monkeypatch):
     )
 
     assert created.status_code == 200
-    item_id = created.json()["items"][0]["id"]
+    item_id = wait_for_job_completion(raw_client, created, headers=auth_headers("owner-token"))["result"]["items"][0]["id"]
 
     response = raw_client.post(
         "/update-status",
@@ -410,7 +437,7 @@ def test_process_file_supports_docx(client, sample_docx_bytes):
     )
 
     assert response.status_code == 200
-    assert response.json()["items"]
+    assert wait_for_job_completion(client, response)["result"]["items"]
 
 
 def test_process_audio_returns_transcript_and_analysis(client, monkeypatch):
@@ -422,7 +449,7 @@ def test_process_audio_returns_transcript_and_analysis(client, monkeypatch):
             "language": "en",
         }
 
-    monkeypatch.setattr("echo_backend.routers.process.transcribe_audio", fake_transcribe_audio)
+    monkeypatch.setattr("echo_backend.services.upload_jobs.transcribe_audio", fake_transcribe_audio)
 
     response = client.post(
         "/process-audio",
@@ -431,7 +458,7 @@ def test_process_audio_returns_transcript_and_analysis(client, monkeypatch):
     )
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = wait_for_job_completion(client, response)["result"]
     assert payload["meeting_id"] == "mtg_audio"
     assert payload["transcript"] == "Alice will review privacy controls next sprint."
     assert payload["items"]
@@ -523,6 +550,18 @@ def test_transcribe_audio_rejects_oversize_upload(client):
     assert response.json() == {"detail": AUDIO_UPLOAD_TOO_LARGE_MESSAGE}
 
 
+def test_process_file_rejects_oversize_upload(client):
+    response = client.post(
+        "/process-file",
+        files={"file": ("meeting.pdf", b"a" * (MAX_TRANSCRIPT_UPLOAD_BYTES + 1), "application/pdf")},
+        data={"meeting_id": "mtg_file_big"},
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 413
+    assert response.json() == {"detail": TRANSCRIPT_UPLOAD_TOO_LARGE_MESSAGE}
+
+
 def test_process_file_requires_real_ai_when_stub_disabled(client, monkeypatch):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("ALLOW_STUB_AI", "false")
@@ -533,8 +572,10 @@ def test_process_file_requires_real_ai_when_stub_disabled(client, monkeypatch):
         data={"meeting_id": "mtg_no_ai"},
     )
 
-    assert response.status_code == 502
-    assert "GEMINI_API_KEY is not configured" in response.json()["detail"]
+    assert response.status_code == 200
+    payload = wait_for_job_completion(client, response)
+    assert payload["status"] == "failed"
+    assert "GEMINI_API_KEY is not configured" in payload["error_message"]
 
 
 def test_process_file_uses_stub_only_when_explicitly_enabled(client, monkeypatch):
@@ -548,7 +589,7 @@ def test_process_file_uses_stub_only_when_explicitly_enabled(client, monkeypatch
     )
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = wait_for_job_completion(client, response)["result"]
     assert payload["meeting_id"] == "mtg_stub"
     assert payload["items"]
     assert payload["items"][0]["created_at"]
