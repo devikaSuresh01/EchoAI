@@ -203,7 +203,7 @@ test('keeps table selection in sync across pagination and notification navigatio
   await page.waitForURL('**/review?item=item-005');
   await expect(page.locator('#item-row-item-005')).toBeVisible();
   await expect(page.locator('#item-row-item-005')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('High risk follow-up 5')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'High risk follow-up 5' })).toBeVisible();
 });
 
 test('reopens prior analyses from the recent rail and searchable picker', async ({ page }) => {
@@ -360,16 +360,17 @@ test('reopens prior analyses from the recent rail and searchable picker', async 
   await expect(page.getByRole('button', { name: 'Open analysis for Security Review' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Open analysis for Security Review' }).click();
-  await expect(page.getByRole('heading', { name: /Security Review/i })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Security Review/i })).toBeVisible();
   await expect(page.getByText('Earlier security review with ownership gaps.')).toBeVisible();
 
   await page.getByRole('button', { name: 'View all analyses' }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
   await page.getByLabel('Search analyses').fill('Validation');
-  await expect(page.getByRole('button', { name: 'Open analysis for Validation Meeting' })).toBeVisible();
-  await page.getByRole('button', { name: 'Open analysis for Validation Meeting' }).click();
+  await expect(dialog.getByRole('button', { name: 'Open analysis for Validation Meeting' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Open analysis for Validation Meeting' }).click();
 
-  await expect(page.getByRole('heading', { name: /Validation Meeting/i })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: /Validation Meeting/i })).toBeVisible();
   await expect(page.getByText('Current release review with active delivery follow-ups.')).toBeVisible();
 });
 

@@ -12,3 +12,5 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+echo-ai-frontend/test-results/
+pytest-cache-files-*/

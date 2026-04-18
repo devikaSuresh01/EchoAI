@@ -221,7 +221,7 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
     return () => window.clearTimeout(timeout);
   }, [meetingData, navigate]);
 
-  const items = meetingData?.actionItems ?? [];
+  const items = useMemo(() => meetingData?.actionItems ?? [], [meetingData]);
   const {
     filters,
     setFilters,
@@ -245,17 +245,20 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
   );
   const selectedItemQuery = searchParams.get('item');
 
-  const updateSelection = (itemId: string | null, replace = false): void => {
-    setSelectedItemId(itemId);
+  const updateSelection = useMemo(
+    () => (itemId: string | null, replace = false): void => {
+      setSelectedItemId(itemId);
 
-    const nextParams = new URLSearchParams(searchParams);
-    if (itemId) {
-      nextParams.set('item', itemId);
-    } else {
-      nextParams.delete('item');
-    }
-    setSearchParams(nextParams, { replace });
-  };
+      const nextParams = new URLSearchParams(searchParams);
+      if (itemId) {
+        nextParams.set('item', itemId);
+      } else {
+        nextParams.delete('item');
+      }
+      setSearchParams(nextParams, { replace });
+    },
+    [searchParams, setSearchParams, setSelectedItemId],
+  );
 
   useEffect(() => {
     if (!meetingData) {
@@ -279,7 +282,7 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
     if (selectedItemId !== itemId) {
       setSelectedItemId(itemId);
     }
-  }, [meetingData, selectedItemId, selectedItemQuery, setSelectedItemId]);
+  }, [meetingData, selectedItemId, selectedItemQuery, setSelectedItemId, updateSelection]);
 
   useEffect(() => {
     if (!selectedItemId) {
@@ -300,7 +303,7 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
 
     const row = document.getElementById(`item-row-${selectedItemId}`);
     row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, [filteredItems, page, pageSize, selectedItemId, setPage]);
+  }, [filteredItems, page, pageSize, selectedItemId, setPage, updateSelection]);
 
   if (!meetingData) {
     return null;

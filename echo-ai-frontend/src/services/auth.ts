@@ -144,6 +144,12 @@ export async function signIn(email: string, password: string): Promise<void> {
 
 export async function signUp(email: string, password: string): Promise<void> {
   if (USE_TEST_AUTH) {
+    if (IS_E2E) {
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 200);
+      });
+    }
+
     mockUser = {
       uid: 'echoai-mock-user',
       email,

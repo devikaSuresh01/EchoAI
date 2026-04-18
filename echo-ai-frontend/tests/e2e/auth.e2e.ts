@@ -21,7 +21,7 @@ test('renders the restyled sign-in page on desktop without layout regressions', 
   await expect(page.getByLabel('Email')).toBeVisible();
   await expect(page.getByLabel('Password')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Create new account' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Create Account' })).toBeVisible();
 
   const emailBox = await page.getByLabel('Email').boundingBox();
   const passwordBox = await page.getByLabel('Password').boundingBox();
@@ -31,7 +31,7 @@ test('renders the restyled sign-in page on desktop without layout regressions', 
   expect(emailBox?.width ?? 0).toBeGreaterThan(240);
   expect(passwordBox?.width ?? 0).toBeGreaterThan(240);
   expect(submitBox?.width ?? 0).toBeGreaterThan(200);
-  expect(panelBox?.x ?? 9999).toBeLessThan(520);
+  expect(panelBox?.x ?? 9999).toBeGreaterThan(520);
 });
 
 test('keeps form controls usable on mobile and shows account creation guidance safely', async ({
@@ -43,7 +43,7 @@ test('keeps form controls usable on mobile and shows account creation guidance s
   const email = page.getByLabel('Email');
   const password = page.getByLabel('Password');
   const submit = page.getByRole('button', { name: 'Sign In' });
-  const createAccount = page.getByRole('button', { name: 'Create new account' });
+  const createAccount = page.getByRole('tab', { name: 'Create Account' });
 
   await expect(email).toBeVisible();
   await expect(password).toBeVisible();
@@ -61,8 +61,7 @@ test('keeps form controls usable on mobile and shows account creation guidance s
   expect((passwordBox?.width ?? 999) < 391).toBeTruthy();
   expect((submitBox?.width ?? 999) < 391).toBeTruthy();
 
-  await page.getByLabel('Account creation info').click();
-  await expect(page.getByText(/First-time users can create an account here/i)).toBeVisible();
+  await expect(page.getByText(/Use the toggle above if you need to create a new account/i)).toBeVisible();
 });
 
 test('shows a stable loading state before redirecting after sign-in', async ({ page }) => {
@@ -81,8 +80,9 @@ test('creates a first-time account and redirects to upload', async ({ page }) =>
 
   await page.getByLabel('Email').fill('new-user@echoai.local');
   await page.getByLabel('Password').fill('correct-horse-battery-staple');
-  await page.getByRole('button', { name: 'Create new account' }).click();
+  await page.getByRole('tab', { name: 'Create Account' }).click();
+  await page.getByRole('button', { name: 'Create Account' }).click();
 
-  await expect(page.getByRole('button', { name: 'Working...' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Creating account...' })).toBeVisible();
   await page.waitForURL('**/upload');
 });

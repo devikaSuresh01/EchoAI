@@ -198,7 +198,7 @@ export function AuthPanel(): JSX.Element {
               />
               <button
                 type="button"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide characters' : 'Show characters'}
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((value) => !value)}
                 disabled={isSubmitting}
