@@ -13,3 +13,4 @@ __pycache__/
 echo-ai-frontend/node_modules/
 echo-ai-frontend/dist/
 echo-ai-frontend/test-results/
+.venv/
