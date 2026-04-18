@@ -1,13 +1,12 @@
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
-const serviceWorkerUrl = new URL(self.location.href);
 const firebaseConfig = {
-  apiKey: serviceWorkerUrl.searchParams.get('apiKey') ?? '',
-  authDomain: serviceWorkerUrl.searchParams.get('authDomain') ?? '',
-  projectId: serviceWorkerUrl.searchParams.get('projectId') ?? '',
-  messagingSenderId: serviceWorkerUrl.searchParams.get('messagingSenderId') ?? '',
-  appId: serviceWorkerUrl.searchParams.get('appId') ?? '',
+  apiKey: 'AIzaSyA457B2eL45RHp9UipOhTWd6Rxv1mwEwyE',
+  authDomain: 'echoai-27576.firebaseapp.com',
+  projectId: 'echoai-27576',
+  messagingSenderId: '944967725771',
+  appId: '1:944967725771:web:682c26ef5a73d5ac4c214e',
 };
 
 const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);

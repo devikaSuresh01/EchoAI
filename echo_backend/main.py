@@ -1,24 +1,15 @@
 import os
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from echo_backend.env import load_env
-from echo_backend.migration_runner import run_startup_migrations
 from echo_backend.routers import meetings, notifications, process, status, transcribe
 
 load_env()
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await run_startup_migrations()
-    yield
-
-
-app = FastAPI(title="Echo AI Backend", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Echo AI Backend", version="1.0.0")
 
 allowed_origins = [origin for origin in (os.getenv("ALLOWED_ORIGINS") or "").split(",") if origin]
 app.add_middleware(

@@ -43,8 +43,14 @@ export function ItemsTable({ meetingData }: ItemsTableProps): JSX.Element | null
       return;
     }
 
+    if (filteredItems.length === 0) {
+      setSelectedItemId(null);
+      return;
+    }
+
     const selectedIndex = filteredItems.findIndex((item) => item.id === selectedItemId);
     if (selectedIndex === -1) {
+      setSelectedItemId(null);
       return;
     }
 

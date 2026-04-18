@@ -1,5 +1,5 @@
 import { ArrowLeft, CalendarDays, Download, Loader2, Search, Sparkles, Users, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AccountToolbar } from '../components/AccountToolbar';
@@ -246,19 +246,20 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
   );
   const selectedItemQuery = searchParams.get('item');
 
-  const updateSelection = useMemo(
-    () => (itemId: string | null, replace = false): void => {
+  const updateSelection = useCallback(
+    (itemId: string | null, replace = false): void => {
       setSelectedItemId(itemId);
-
-      const nextParams = new URLSearchParams(searchParams);
-      if (itemId) {
-        nextParams.set('item', itemId);
-      } else {
-        nextParams.delete('item');
-      }
-      setSearchParams(nextParams, { replace });
+      setSearchParams((currentParams) => {
+        const nextParams = new URLSearchParams(currentParams);
+        if (itemId) {
+          nextParams.set('item', itemId);
+        } else {
+          nextParams.delete('item');
+        }
+        return nextParams;
+      }, { replace });
     },
-    [searchParams, setSearchParams, setSelectedItemId],
+    [setSearchParams, setSelectedItemId],
   );
 
   useEffect(() => {
@@ -280,10 +281,16 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
       return;
     }
 
+    const itemVisible = filteredItems.some((item) => item.id === itemId);
+    if (!itemVisible) {
+      updateSelection(null, true);
+      return;
+    }
+
     if (selectedItemId !== itemId) {
       setSelectedItemId(itemId);
     }
-  }, [meetingData, selectedItemId, selectedItemQuery, setSelectedItemId, updateSelection]);
+  }, [filteredItems, meetingData, selectedItemId, selectedItemQuery, setSelectedItemId, updateSelection]);
 
   useEffect(() => {
     if (!selectedItemId) {
@@ -292,6 +299,11 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
 
     if (manualPageChangeRef.current) {
       manualPageChangeRef.current = false;
+      return;
+    }
+
+    if (filteredItems.length === 0) {
+      updateSelection(null, true);
       return;
     }
 

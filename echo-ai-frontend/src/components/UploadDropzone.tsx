@@ -25,9 +25,9 @@ export function UploadDropzone({
     () =>
       mode === 'audio'
         ? {
-            accept: '.mp3,.wav,.m4a,.webm,.mp4,audio/*,video/webm,video/mp4',
+            accept: '.mp3,.wav,.m4a',
             label: 'Drop an audio file here or click to browse',
-            hint: 'Supported: .mp3, .wav, .m4a, .webm, .mp4 (max 40 MB)',
+            hint: 'Supported: .mp3, .wav, .m4a (max 40 MB)',
             Icon: FileAudio,
           }
         : {

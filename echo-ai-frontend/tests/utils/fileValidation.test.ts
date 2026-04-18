@@ -14,6 +14,21 @@ describe('validateFile', () => {
     expect(validateFile(file, 'audio')).toEqual({ valid: true });
   });
 
+  it('accepts supported m4a files by extension when mime is generic', () => {
+    const file = createFile('meeting.m4a', 'application/octet-stream', 1024);
+
+    expect(validateFile(file, 'audio')).toEqual({ valid: true });
+  });
+
+  it('rejects mp4 files for audio uploads', () => {
+    const file = createFile('meeting.mp4', 'audio/mp4', 1024);
+
+    expect(validateFile(file, 'audio')).toEqual({
+      valid: false,
+      reason: 'Unsupported file type (audio/mp4).',
+    });
+  });
+
   it('accepts supported transcript files by extension when mime is generic', () => {
     const file = createFile('notes.docx', 'application/octet-stream', 1024);
 

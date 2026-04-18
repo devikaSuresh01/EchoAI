@@ -28,6 +28,17 @@ def test_transcribe_audio_rejects_unsupported_format(client):
     assert response.json() == {"detail": "unsupported audio format"}
 
 
+def test_transcribe_audio_rejects_mp4_upload(client):
+    response = client.post(
+        "/transcribe-audio",
+        files={"audio_file": ("meeting.mp4", b"nope", "audio/mp4")},
+        data={"meeting_id": "mtg_mp4"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "unsupported audio format"}
+
+
 def test_process_file_rejects_unsupported_type(client):
     response = client.post(
         "/process-file",

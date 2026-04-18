@@ -2,10 +2,10 @@ const AUDIO_MIME = new Set([
   'audio/mpeg',
   'audio/mp4',
   'audio/wav',
+  'audio/wave',
+  'audio/x-wav',
+  'audio/mp3',
   'audio/x-m4a',
-  'audio/webm',
-  'video/webm',
-  'video/mp4',
   'application/octet-stream',
 ]);
 
@@ -13,8 +13,6 @@ const AUDIO_EXT = new Set([
   '.mp3',
   '.wav',
   '.m4a',
-  '.webm',
-  '.mp4',
 ]);
 
 const TRANSCRIPT_MIME = new Set([
@@ -43,16 +41,28 @@ export function validateFile(
   mode: 'audio' | 'transcript',
 ): ValidationResult {
   const extension = `.${file.name.split('.').pop()?.toLowerCase() ?? ''}`;
-  const mimeOk =
-    mode === 'audio' ? AUDIO_MIME.has(file.type) : TRANSCRIPT_MIME.has(file.type);
-  const extOk =
-    mode === 'audio' ? AUDIO_EXT.has(extension) : TRANSCRIPT_EXT.has(extension);
+  const mime = file.type;
 
-  if (!mimeOk && !extOk) {
-    return {
-      valid: false,
-      reason: `Unsupported file type (${file.type || extension}).`,
-    };
+  if (mode === 'audio') {
+    const extOk = AUDIO_EXT.has(extension);
+    const mimeOk = mime.length === 0 || AUDIO_MIME.has(mime);
+
+    if (!extOk || !mimeOk) {
+      return {
+        valid: false,
+        reason: `Unsupported file type (${mime || extension}).`,
+      };
+    }
+  } else {
+    const mimeOk = TRANSCRIPT_MIME.has(mime);
+    const extOk = TRANSCRIPT_EXT.has(extension);
+
+    if (!mimeOk && !extOk) {
+      return {
+        valid: false,
+        reason: `Unsupported file type (${mime || extension}).`,
+      };
+    }
   }
 
   const maxSizeMb = mode === 'audio' ? MAX_AUDIO_SIZE_MB : MAX_TRANSCRIPT_SIZE_MB;

@@ -5,7 +5,7 @@ transcription/transcriber.py — Whisper transcription layer.
 import os
 
 
-SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".mp4", ".m4a", ".webm"}
+SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a"}
 
 _model = None
 
@@ -28,7 +28,7 @@ def _get_model():
 
 def transcribe_audio(file_path: str) -> str:
     """
-    Transcribes an audio/video file supported by ffmpeg into plain text.
+    Transcribes a supported audio file into plain text.
     """
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in SUPPORTED_AUDIO_EXTENSIONS:

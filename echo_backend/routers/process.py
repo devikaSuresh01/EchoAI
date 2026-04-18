@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from aimodel.transcription.service import SUPPORTED_AUDIO_EXTENSIONS
 from constants.echoai import AUDIO_UPLOAD_TOO_LARGE_MESSAGE, MAX_AUDIO_UPLOAD_BYTES
 from echo_backend.auth import CurrentUser, get_current_user
 from echo_backend.database import get_db
@@ -23,10 +24,10 @@ AUDIO_ACCEPTED_MIME = {
     "audio/mpeg",
     "audio/mp4",
     "audio/wav",
+    "audio/wave",
+    "audio/x-wav",
+    "audio/mp3",
     "audio/x-m4a",
-    "audio/webm",
-    "video/webm",
-    "video/mp4",
 }
 
 
@@ -176,7 +177,11 @@ async def process_audio(
     current_user: CurrentUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if audio_file.content_type not in AUDIO_ACCEPTED_MIME:
+    ext = f".{(audio_file.filename or '').rsplit('.', 1)[-1].lower()}" if "." in (audio_file.filename or "") else ""
+    if ext not in SUPPORTED_AUDIO_EXTENSIONS:
+        raise HTTPException(400, "unsupported audio format")
+
+    if audio_file.content_type and audio_file.content_type not in AUDIO_ACCEPTED_MIME:
         raise HTTPException(400, "unsupported audio format")
 
     await _ensure_meeting_available(meeting_id, db)

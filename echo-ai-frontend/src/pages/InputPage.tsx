@@ -107,12 +107,12 @@ export default function InputPage(): JSX.Element {
             Meeting Accountability Tracker
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-            Upload audio or a transcript file to generate structured accountability
+            Upload an audio recording or a transcript file to generate structured accountability
             reports, surface high-risk follow-ups, and review low-confidence AI calls.
           </p>
           <div className="mt-6 grid gap-3 md:grid-cols-3">
             {[
-              ['Upload', 'Audio, video, or transcript files with inline validation before processing.'],
+              ['Upload', 'Audio or transcript files with inline validation before processing.'],
               ['Analyze', 'AI extracts owners, due dates, confidence, and risk in one pass.'],
               ['Act', 'Review flagged items and move the team forward from one dashboard.'],
             ].map(([title, description]) => (

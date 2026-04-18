@@ -206,6 +206,52 @@ test('keeps table selection in sync across pagination and notification navigatio
   await expect(page.getByRole('heading', { level: 2, name: 'High risk follow-up 5' })).toBeVisible();
 });
 
+test('keeps the review workspace visible when filters produce zero matching items', async ({
+  page,
+}) => {
+  const response = createProcessFileResponse();
+
+  await uploadMeeting(page, response, async (route) => {
+    await fulfillJson(route, 200, response);
+  });
+
+  await page.getByRole('link', { name: 'Open Review Workspace' }).click();
+  await page.waitForURL('**/review');
+  await page.locator('#item-row-item-001').click();
+  await page.waitForURL('**/review?item=item-001');
+
+  await page.getByLabel('Filter items by owner').fill('Nobody');
+
+  await page.waitForURL('**/review');
+  await expect(page.getByRole('heading', { level: 2, name: 'All action items' })).toBeVisible();
+  await expect(page.getByText(/0 items match the current filters\./i)).toBeVisible();
+  await expect(page.getByText('No items match these filters.')).toBeVisible();
+  await expect(page.getByText('Nothing selected yet.')).toBeVisible();
+});
+
+test('clears the selected ticket when filters exclude it but other rows remain', async ({
+  page,
+}) => {
+  const response = createPaginationResponse();
+
+  await uploadMeeting(page, response, async (route) => {
+    await fulfillJson(route, 200, response);
+  });
+
+  await page.getByRole('link', { name: 'Open Review Workspace' }).click();
+  await page.waitForURL('**/review');
+  await page.locator('#item-row-item-005').click();
+  await page.waitForURL('**/review?item=item-005');
+
+  await page.getByLabel('Filter items by risk').selectOption('low');
+
+  await page.waitForURL('**/review');
+  await expect(page.getByRole('heading', { level: 2, name: 'All action items' })).toBeVisible();
+  await expect(page.getByText(/3 items match the current filters\./i)).toBeVisible();
+  await expect(page.locator('#item-row-item-010')).toBeVisible();
+  await expect(page.getByText('Nothing selected yet.')).toBeVisible();
+});
+
 test('reopens prior analyses from the recent rail and searchable picker', async ({ page }) => {
   const currentResponse = createProcessFileResponse(8, {
     meeting_id: 'mtg-current',

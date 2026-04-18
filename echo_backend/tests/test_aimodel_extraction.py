@@ -43,3 +43,60 @@ def test_analyze_transcript_falls_back_when_commitment_signals_have_no_items(mon
     assert result["meeting_id"] == "mtg_actions"
     assert result["items"]
     assert result["high_risk_count"] >= 0
+
+
+def test_analyze_transcript_returns_partial_results_immediately_after_failure(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_extract(chunk, chunk_index=0):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return gemini.ExtractionResult(
+                items=[
+                    {
+                        "task": "Update privacy policy",
+                        "owner": "John",
+                        "status": "promised",
+                        "due_date": "next sprint",
+                        "risk_keywords": ["privacy"],
+                        "evidence": "John will update the privacy policy next sprint.",
+                    }
+                ],
+                had_failure=False,
+            )
+        return gemini.ExtractionResult(items=[], had_failure=True, error="timeout")
+
+    monkeypatch.setattr("aimodel.service.extract_items_from_chunk", fake_extract)
+    monkeypatch.setattr("aimodel.service.chunk_transcript", lambda transcript: ["chunk-1", "chunk-2", "chunk-3"])
+    monkeypatch.setattr("aimodel.service.get_chunk_delay", lambda: 0.0)
+    monkeypatch.setattr("aimodel.service.get_summary_delay", lambda: 0.0)
+    monkeypatch.setattr(
+        "aimodel.service.generate_summary",
+        lambda transcript: (_ for _ in ()).throw(AssertionError("summary should not run after failure")),
+    )
+
+    result = analyze_transcript("mtg_partial", "John will update the privacy policy next sprint.")
+
+    assert calls["count"] == 2
+    assert result["meeting_id"] == "mtg_partial"
+    assert result["summary"] == "Partial analysis returned because Gemini extraction timed out or failed."
+    assert len(result["items"]) == 1
+
+
+def test_analyze_transcript_falls_back_immediately_after_failure_with_action_signals(monkeypatch):
+    calls = {"count": 0}
+
+    def fake_extract(chunk, chunk_index=0):
+        calls["count"] += 1
+        return gemini.ExtractionResult(items=[], had_failure=True, error="timeout")
+
+    monkeypatch.setattr("aimodel.service.extract_items_from_chunk", fake_extract)
+    monkeypatch.setattr("aimodel.service.chunk_transcript", lambda transcript: ["chunk-1", "chunk-2"])
+    monkeypatch.setattr("aimodel.service.get_chunk_delay", lambda: 0.0)
+    monkeypatch.setattr("aimodel.service.get_summary_delay", lambda: 0.0)
+
+    result = analyze_transcript("mtg_timeout", "John will update the privacy policy next sprint.")
+
+    assert calls["count"] == 1
+    assert result["meeting_id"] == "mtg_timeout"
+    assert result["items"]
