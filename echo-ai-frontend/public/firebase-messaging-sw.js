@@ -1,29 +1,36 @@
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
 
-firebase.initializeApp({
-  apiKey: 'AIzaSyA457B2eL45RHp9UipOhTWd6Rxv1mwEwyE',
-  authDomain: 'echoai-27576.firebaseapp.com',
-  projectId: 'echoai-27576',
-  messagingSenderId: '944967725771',
-  appId: '1:944967725771:web:682c26ef5a73d5ac4c214e',
-});
+const serviceWorkerUrl = new URL(self.location.href);
+const firebaseConfig = {
+  apiKey: serviceWorkerUrl.searchParams.get('apiKey') ?? '',
+  authDomain: serviceWorkerUrl.searchParams.get('authDomain') ?? '',
+  projectId: serviceWorkerUrl.searchParams.get('projectId') ?? '',
+  messagingSenderId: serviceWorkerUrl.searchParams.get('messagingSenderId') ?? '',
+  appId: serviceWorkerUrl.searchParams.get('appId') ?? '',
+};
 
-const messaging = firebase.messaging();
+const hasFirebaseConfig = Object.values(firebaseConfig).every(Boolean);
 
-messaging.onBackgroundMessage((payload) => {
-  const notification = payload.notification ?? {};
-  const data = payload.data ?? {};
-  const title = notification.title ?? 'Echo AI Alert';
+if (hasFirebaseConfig) {
+  firebase.initializeApp(firebaseConfig);
 
-  self.registration.showNotification(title, {
-    body: notification.body ?? 'A high-risk item needs your attention.',
-    data: {
-      meetingId: data.meetingId ?? '',
-      itemId: data.itemId ?? '',
-    },
+  const messaging = firebase.messaging();
+
+  messaging.onBackgroundMessage((payload) => {
+    const notification = payload.notification ?? {};
+    const data = payload.data ?? {};
+    const title = notification.title ?? 'Echo AI Alert';
+
+    self.registration.showNotification(title, {
+      body: notification.body ?? 'A high-risk item needs your attention.',
+      data: {
+        meetingId: data.meetingId ?? '',
+        itemId: data.itemId ?? '',
+      },
+    });
   });
-});
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

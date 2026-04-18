@@ -82,7 +82,7 @@ export function AccountToolbar({
           type="button"
           onClick={() => void handleSignOut()}
           disabled={isSigningOut}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+          className={`inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60 ${
             isInverted
               ? 'border border-white/15 bg-white/10 text-white hover:bg-white/15 focus-visible:ring-white/70'
               : 'border border-gray-300 bg-white text-primary hover:bg-gray-50 hover:shadow-md focus-visible:ring-accent'

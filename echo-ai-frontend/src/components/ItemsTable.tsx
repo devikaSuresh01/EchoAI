@@ -1,5 +1,5 @@
 import { Download, Search } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useDashboardFilters } from '../hooks/useDashboardFilters';
 import { useAppStore } from '../stores/appStore';
 import type { MeetingData } from '../types/meeting';
@@ -9,7 +9,7 @@ import { RiskBadge } from './RiskBadge';
 const DESKTOP_COLUMN_TEMPLATE =
   'md:grid-cols-[minmax(260px,3.2fr)_minmax(110px,1.05fr)_minmax(110px,1.05fr)_minmax(110px,1fr)_minmax(110px,0.95fr)_minmax(72px,0.7fr)_minmax(88px,0.78fr)]';
 const TABLE_INNER_WIDTH_CLASS = 'min-w-[940px] w-max md:min-w-full';
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 13;
 
 interface ItemsTableProps {
   meetingData: MeetingData;
@@ -18,6 +18,7 @@ interface ItemsTableProps {
 export function ItemsTable({ meetingData }: ItemsTableProps): JSX.Element | null {
   const selectedItemId = useAppStore((state) => state.selectedItemId);
   const setSelectedItemId = useAppStore((state) => state.setSelectedItemId);
+  const manualPageChangeRef = useRef(false);
 
   const items = meetingData.actionItems;
   const {
@@ -34,6 +35,11 @@ export function ItemsTable({ meetingData }: ItemsTableProps): JSX.Element | null
 
   useEffect(() => {
     if (!selectedItemId) {
+      return;
+    }
+
+    if (manualPageChangeRef.current) {
+      manualPageChangeRef.current = false;
       return;
     }
 
@@ -279,7 +285,10 @@ export function ItemsTable({ meetingData }: ItemsTableProps): JSX.Element | null
             type="button"
             disabled={page === 1}
             aria-label="Go to previous page"
-            onClick={() => setPage(page - 1)}
+            onClick={() => {
+              manualPageChangeRef.current = true;
+              setPage(page - 1);
+            }}
             className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
           >
             Previous
@@ -288,7 +297,10 @@ export function ItemsTable({ meetingData }: ItemsTableProps): JSX.Element | null
             type="button"
             disabled={page === totalPages}
             aria-label="Go to next page"
-            onClick={() => setPage(page + 1)}
+            onClick={() => {
+              manualPageChangeRef.current = true;
+              setPage(page + 1);
+            }}
             className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
           >
             Next

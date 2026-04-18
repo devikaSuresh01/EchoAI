@@ -1,5 +1,5 @@
 import { ArrowLeft, CalendarDays, Download, Loader2, Search, Sparkles, Users, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AccountToolbar } from '../components/AccountToolbar';
@@ -16,7 +16,7 @@ import { downloadCsv } from '../utils/exportCsv';
 const DESKTOP_COLUMN_TEMPLATE =
   'grid-cols-[minmax(260px,3.2fr)_minmax(110px,1.05fr)_minmax(110px,1.05fr)_minmax(110px,1fr)_minmax(110px,0.95fr)_minmax(72px,0.7fr)_minmax(88px,0.78fr)]';
 const TABLE_INNER_WIDTH_CLASS = 'min-w-[940px] w-max xl:min-w-full';
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 13;
 const ACTIONS = [
   { label: 'Mark Done', value: 'done' },
   { label: 'In Progress', value: 'in_progress' },
@@ -207,6 +207,7 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
   const selectedItemId = useAppStore((state) => state.selectedItemId);
   const setSelectedItemId = useAppStore((state) => state.setSelectedItemId);
   const [isLoading, setIsLoading] = useState(true);
+  const manualPageChangeRef = useRef(false);
 
   useEffect(() => {
     if (!meetingData) {
@@ -286,6 +287,11 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
 
   useEffect(() => {
     if (!selectedItemId) {
+      return;
+    }
+
+    if (manualPageChangeRef.current) {
+      manualPageChangeRef.current = false;
       return;
     }
 
@@ -524,7 +530,10 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
                       type="button"
                       disabled={page === 1}
                       aria-label="Go to previous page"
-                      onClick={() => setPage(page - 1)}
+                      onClick={() => {
+                        manualPageChangeRef.current = true;
+                        setPage(page - 1);
+                      }}
                       className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Previous
@@ -533,7 +542,10 @@ export default function ReviewWorkspacePage(): JSX.Element | null {
                       type="button"
                       disabled={page === totalPages}
                       aria-label="Go to next page"
-                      onClick={() => setPage(page + 1)}
+                      onClick={() => {
+                        manualPageChangeRef.current = true;
+                        setPage(page + 1);
+                      }}
                       className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Next

@@ -121,7 +121,7 @@ export function AuthPanel(): JSX.Element {
             type="button"
             onClick={() => void handleSignOut()}
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-primary transition-all duration-200 hover:bg-gray-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-60"
           >
             <LogOut className="h-4 w-4" />
             {isSubmitting ? 'Signing out...' : 'Sign Out'}
